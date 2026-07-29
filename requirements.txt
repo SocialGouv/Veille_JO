@@ -1,0 +1,5 @@
+requests
+python-dotenv
+openpyxl
+beautifulsoup4
+pywin32 ; sys_platform == 'win32'   # utilisé seulement si mail_mode == "brouillon_outlook"
