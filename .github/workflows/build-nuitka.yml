@@ -1,0 +1,87 @@
+name: Build binaires (Nuitka)
+
+# Déclenchement :
+#   - à chaque tag poussé au format « v* » (ex. : git tag v1.0.0 && git push origin v1.0.0)
+#   - manuellement depuis l'onglet Actions (bouton « Run workflow »), pour tester sans taguer.
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch: {}
+
+# Requis pour que le job crée la Release du tag et y attache les binaires.
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: ${{ matrix.nom }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false            # un échec sur une plateforme n'annule pas les 3 autres
+      matrix:
+        include:
+          - { os: windows-latest, nom: windows-x64 }
+          - { os: ubuntu-latest,  nom: linux-x64 }
+          - { os: macos-15,       nom: macos-arm64 }   # Apple Silicon (M1/M2/M3/M4)
+          - { os: macos-15-intel, nom: macos-x64 }     # dernière image Intel (supportée jusqu'à ~automne 2027)
+
+    env:
+      # Nom de l'archive produite pour cette plateforme (ex. : veille-jo-v1.0.0-windows-x64).
+      NAME: veille-jo-${{ github.ref_name }}-${{ matrix.nom }}
+
+    steps:
+      - name: Récupérer le code
+        uses: actions/checkout@v4
+
+      - name: Installer Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Installer les dépendances
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Compiler avec Nuitka (mode standalone)
+        uses: Nuitka/Nuitka-Action@main
+        with:
+          nuitka-version: main
+          script-name: main.py
+          mode: standalone          # dossier autonome ; compatible avec la résolution Path(__file__).parent de l'app
+          output-dir: build
+          # Modèle de configuration livré à côté de l'exe (la collègue le renomme en « .env » et le remplit).
+          include-data-files: .env.example=.env.example
+          # Windows uniquement : win32com est importé dynamiquement (brouillon Outlook, notification.py),
+          # donc invisible à l'analyse statique de Nuitka → on l'embarque explicitement.
+          # À valider au 1er build : l'embarquement de pywin32 sous Nuitka demande parfois un ajustement.
+          include-package: ${{ runner.os == 'Windows' && 'win32com,win32,win32comext' || '' }}
+          include-module: ${{ runner.os == 'Windows' && 'win32timezone' || '' }}
+
+      - name: Archiver le dossier (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Rename-Item build/main.dist $env:NAME
+          Compress-Archive -Path "build/$env:NAME" -DestinationPath "$env:NAME.zip"
+
+      - name: Archiver le dossier (Linux / macOS)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          mv build/main.dist "build/$NAME"
+          (cd build && zip -r "../$NAME.zip" "$NAME")
+
+      - name: Publier l'artefact (téléchargeable dans l'onglet Actions)
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.NAME }}
+          path: ${{ env.NAME }}.zip
+          if-no-files-found: error
+
+      - name: Attacher le binaire à la Release (uniquement sur tag)
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ env.NAME }}.zip
