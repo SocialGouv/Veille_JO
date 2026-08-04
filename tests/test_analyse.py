@@ -140,6 +140,24 @@ TABLE_DEUX_BLOCS_LIBELLES = """
 </table>
 """
 
+# Arrêté de transfert de laboratoire réel (JO du 30/07/2026, JORFTEXT000054555489, liste
+# en sus L. 162-23-6) : DEUX tableaux séparés (« Ancien » puis « Nouveau » laboratoire
+# exploitant), chacun ouvert par un bandeau de titre pleine largeur (une seule cellule à
+# colspan) AVANT sa vraie rangée d'en-têtes de colonnes.
+TABLE_TRANSFERT_LABO_BANDEAU = """
+<p>Le laboratoire exploitant... de la spécialité suivante est modifié comme suit :</p>
+<table>
+ <tr><th colspan="5">Ancien laboratoire exploitant ou titulaire de l'autorisation de mise sur le marché</th></tr>
+ <tr><th>Dénomination commune internationale</th><th>Libellé de la spécialité pharmaceutique</th><th>Code UCD</th><th>Libellé de l'UCD</th><th>Ancien laboratoire exploitant ou titulaire de l'autorisation de mise sur le marché</th></tr>
+ <tr><td>MEROPENEM</td><td>MEROPENEM BRADEX 1 g, poudre pour solution injectable ou pour perfusion</td><td>3400894434726</td><td>MEROPENEM BEX 1G INJ FL</td><td>AGUETTANT</td></tr>
+</table>
+<table>
+ <tr><th colspan="5">Nouveau laboratoire exploitant ou titulaire de l'autorisation de mise sur le marché</th></tr>
+ <tr><th>Dénomination commune internationale</th><th>Libellé de la spécialité pharmaceutique</th><th>Code UCD</th><th>Libellé de l'UCD</th><th>Nouveau laboratoire exploitant ou titulaire de l'autorisation de mise sur le marché</th></tr>
+ <tr><td>MEROPENEM</td><td>MEROPENEM BRADEX 1 g, poudre pour solution injectable ou pour perfusion</td><td>3400894434726</td><td>MEROPENEM BEX 1G INJ FL</td><td>DEMOGEN FRANCE SAS</td></tr>
+</table>
+"""
+
 # Décision UNCAM réelle (JO du 23/07/2026, JORFTEXT…458542) : le taux est en colonne, une
 # ligne par présentation, et il s'écrit avec une espace insécable avant le « % ».
 DECISION_TAUX = """
@@ -617,6 +635,24 @@ class TestSectionsEtPresentations(unittest.TestCase):
         self.assertEqual(cefepime.cip, "3400930154175")
         # Les deux rangées d'en-tête sont écartées : aucune ligne « Code CIP » fantôme.
         self.assertEqual(len(analyse.parser_tableaux(tableaux)), 2)
+
+    def test_bandeau_de_titre_jamais_un_produit(self):
+        """Défaut réparé le 04/08/2026 (JO du 30/07/2026, JORFTEXT000054555489) : un
+        bandeau de titre pleine largeur (une cellule à colspan) en tête d'un tableau
+        n'est ni une rangée d'en-têtes ni un produit. Sans le filtre, le bandeau ET la
+        vraie rangée d'en-têtes sortaient tous deux en lignes fantômes (« ANCIEN
+        LABORATOIRE EXPLOITANT... », « DÉNOMINATION COMMUNE INTERNATIONALE »), le CIP/UCD
+        n'était jamais lu, et la ligne réelle (MEROPENEM BRADEX) restait invisible."""
+        _, tableaux, _ = analyse.nettoyer_texte(TABLE_TRANSFERT_LABO_BANDEAU)
+        ancien, nouveau = analyse.parser_tableaux(tableaux)
+        self.assertEqual(
+            ancien.denomination_brute,
+            "MEROPENEM BRADEX 1 g, poudre pour solution injectable ou pour perfusion",
+        )
+        self.assertEqual(ancien.laboratoire_brut, "AGUETTANT")
+        self.assertEqual(ancien.cip, "3400894434726")
+        self.assertEqual(nouveau.laboratoire_brut, "DEMOGEN FRANCE SAS")
+        self.assertEqual(nouveau.cip, "3400894434726")
 
     def test_tableau_ordinaire_lu_sans_decalage(self):
         """Un tableau à un seul bloc n'est jamais découpé : pas de laboratoire précédent,

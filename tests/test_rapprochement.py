@@ -745,6 +745,43 @@ class TestRapprochementParCip(unittest.TestCase):
             resultat.anomalies, []
         )  # avis rattaché : plus d'« à vérifier »
 
+    def test_transfert_de_labo_meme_texte_deux_tableaux(self):
+        """MEROPENEM BRADEX au 30/07/2026 (JORFTEXT000054555489, liste en sus) : un seul
+        texte, deux tableaux (ancien/nouveau laboratoire exploitant) partageant le même
+        code UCD — une fois le bandeau de titre filtré côté analyse.py, les deux
+        présentations doivent se rattacher à la même racine, une ligne par laboratoire."""
+        cip = "3400894434726"
+        textes = [
+            _texte(
+                "arrete_inscription",
+                [
+                    ProduitExtrait(
+                        "MEROPENEM BRADEX 1 g, poudre pour solution injectable ou "
+                        "pour perfusion",
+                        "AGUETTANT",
+                        cip=cip,
+                    ),
+                    ProduitExtrait(
+                        "MEROPENEM BRADEX 1 g, poudre pour solution injectable ou "
+                        "pour perfusion",
+                        "DEMOGEN FRANCE SAS",
+                        cip=cip,
+                    ),
+                ],
+                id_="JORFTEXT000054555489",
+                listes=["LES SMR"],
+            ),
+        ]
+        resultat = consolider(textes, DATE_JO)
+        self.assertEqual(
+            {l.produit for l in resultat.lignes}, {"MEROPENEM BRADEX"}
+        )
+        self.assertEqual(
+            {l.laboratoire for l in resultat.lignes},
+            {"AGUETTANT", "DEMOGEN"},  # DEMOGEN FRANCE SAS → DEMOGEN (annexe D)
+        )
+        self.assertEqual(resultat.anomalies, [])
+
     def test_avis_en_premier_dans_le_sommaire(self):
         """L'élection de la clé canonique ne dépend pas de l'ordre du sommaire."""
         textes = [

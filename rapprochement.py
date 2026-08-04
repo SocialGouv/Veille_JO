@@ -761,7 +761,8 @@ def _racine_prefixe(a: tuple[str, str], b: tuple[str, str]) -> tuple[str, str] |
 
 
 def _cles_canoniques_par_cip(textes: list[TexteAnalyse]) -> dict[str, tuple[str, str]]:
-    """Élit, pour chaque code CIP/UCD, la clé (racine, laboratoire) qui fait foi.
+    """Élit, pour chaque code CIP/UCD, la RACINE qui fait foi (le laboratoire élu n'est
+    qu'un repli — voir `_cle_consolidee`, qui garde toujours celui lu par le produit).
 
     Ce code est le seul identifiant commun aux familles de tableaux : les avis de
     prix — et certains arrêtés (rétrocession, constat du 02/07/2026) — abrègent les
@@ -769,6 +770,11 @@ def _cles_canoniques_par_cip(textes: list[TexteAnalyse]) -> dict[str, tuple[str,
     textes à dénominations complètes (arrêtés) ; à priorité égale, la racine courte
     l'emporte quand elle est préfixe de l'autre (le reste est un code abrégé), sinon
     premier vu — divergence réelle entre arrêtés signalée au journal (jamais observé).
+
+    La divergence surveillée porte sur la RACINE seule, jamais sur le laboratoire :
+    un même CIP publié par deux laboratoires différents est un transfert d'exploitant
+    légitime (constaté le 04/08/2026, JO du 30/07/2026 — MEROPENEM BRADEX, AGUETTANT →
+    DEMOGEN FRANCE SAS), pas une divergence à signaler.
     """
     canoniques: dict[str, tuple[int, tuple[str, str]]] = {}   # cip → (priorité, clé)
     for texte in textes:
@@ -781,14 +787,14 @@ def _cles_canoniques_par_cip(textes: list[TexteAnalyse]) -> dict[str, tuple[str,
             en_place = canoniques.get(cip)
             if en_place is None or priorite < en_place[0]:
                 canoniques[cip] = (priorite, cle)
-            elif priorite == en_place[0] and en_place[1] != cle:
+            elif priorite == en_place[0] and en_place[1][0] != cle[0]:
                 courte = _racine_prefixe(en_place[1], cle)
                 if courte is not None:
                     canoniques[cip] = (priorite, courte)
                 elif priorite == 0:
                     JOURNAL.warning("CIP %s porté par deux dénominations d'arrêtés "
                                     "divergentes (%s vs %s) : première conservée.",
-                                    cip, en_place[1], cle)
+                                    cip, en_place[1][0], cle[0])
     return {cip: cle for cip, (_priorite, cle) in canoniques.items()}
 
 
@@ -821,14 +827,19 @@ def _cle_consolidee(produit, canoniques: dict[str, tuple[str, str]]) -> tuple[st
     """Clé de ligne (racine, laboratoire) d'un produit, canonicalisée par code CIP.
 
     Le pont CIP/UCD rattache un produit à dénomination abrégée (« MEROPENEM PAN 1G »,
-    avis de prix) à la clé de l'arrêté portant le même code — la seule reprise, jamais
-    devinée, entre familles de tableaux.
+    avis de prix) à la RACINE de l'arrêté portant le même code — la seule reprise,
+    jamais devinée, entre familles de tableaux. Le laboratoire, lui, reste TOUJOURS
+    celui lu par ce produit : canonicaliser aussi le laboratoire réattribuait un
+    transfert d'exploitant tout entier à l'ancien exploitant du premier texte vu sous ce
+    CIP (défaut constaté le 04/08/2026, JO du 30/07/2026 — le nouveau laboratoire
+    disparaissait sans anomalie).
     """
     cle_lue = _cle_produit(produit)
-    cle = canoniques.get(getattr(produit, "cip", ""), cle_lue)
+    racine_canonique, _labo_canonique = canoniques.get(getattr(produit, "cip", ""), cle_lue)
+    cle = (racine_canonique, cle_lue[1])
     if cle != cle_lue:
-        JOURNAL.info("Produit « %s » rattaché par CIP à %s.",
-                     produit.denomination_brute, cle)
+        JOURNAL.info("Produit « %s » rattaché par CIP à la racine « %s ».",
+                     produit.denomination_brute, racine_canonique)
     return cle
 
 

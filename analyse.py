@@ -655,6 +655,32 @@ def _decalage_bloc_abroge(rangees: list) -> int:
     return decalage
 
 
+def _est_bandeau_titre(rangee) -> bool:
+    """Vrai si la rangée est un bandeau de titre pleine largeur (une seule cellule,
+    fusionnée sur plusieurs colonnes) : jamais un en-tête de colonnes ni une donnée.
+
+    Constaté sur le JO du 30/07/2026 (arrêté de transfert de laboratoire, liste en
+    sus L. 162-23-6) : chacun des deux tableaux « Ancien/Nouveau laboratoire
+    exploitant... » ouvre sur une rangée bandeau (`<th colspan="5">`) AVANT sa
+    vraie rangée d'en-têtes de colonnes. Sans ce filtre, `_gabarit_du_tableau`
+    prenait ce bandeau pour LA rangée d'en-tête ; aucune colonne n'y matchait
+    (« ancien laboratoire... » ne contient ni « dénomination » ni « nom » ni
+    « libellé »), si bien que le bandeau, la vraie rangée d'en-têtes ET la rangée
+    de données étaient tous les trois lus comme des produits fantômes.
+    """
+    cellules = rangee.find_all(["td", "th"])
+    return len(cellules) == 1 and _colspan(cellules[0]) >= 2
+
+
+def _compter_bandeaux(rangees: list) -> int:
+    """Nombre de bandeaux de titre en tête du tableau (0 pour tous les autres tableaux
+    du JO, qui commencent directement par leur rangée d'en-têtes ou de données)."""
+    n = 0
+    while n < len(rangees) and _est_bandeau_titre(rangees[n]):
+        n += 1
+    return n
+
+
 def _laboratoire_du_bloc_abroge(cellules: list[str], decalage: int) -> str:
     """Exploitant lu dans le bloc « libellés abrogés » d'une rangée (`""` hors de ce gabarit).
 
@@ -680,16 +706,24 @@ class _Gabarit:
 
 
 def _gabarit_du_tableau(rangees: list) -> _Gabarit:
-    """Établit le gabarit de lecture d'un tableau depuis sa (ou ses deux) rangée(s) d'en-tête."""
-    decalage = _decalage_bloc_abroge(rangees)
+    """Établit le gabarit de lecture d'un tableau depuis sa (ou ses deux) rangée(s) d'en-tête.
+
+    Les bandeaux de titre pleine largeur (`_compter_bandeaux`), s'il y en a, sont
+    sautés avant toute lecture d'en-tête : ils ne portent ni colonnes ni données.
+    """
+    bandeaux = _compter_bandeaux(rangees)
+    rangees_utiles = rangees[bandeaux:]
+    if not rangees_utiles:
+        return _Gabarit(_index_colonnes([]), (), len(rangees))
+    decalage = _decalage_bloc_abroge(rangees_utiles)
     i_entetes = 1 if decalage else 0      # tableau à deux blocs : les colonnes sont en 2e rangée
-    entetes = _texte_cellules(rangees[i_entetes])[decalage:]
+    entetes = _texte_cellules(rangees_utiles[i_entetes])[decalage:]
     colonnes = _index_colonnes(entetes)
     # Libellés d'en-tête de ce tableau : ils servent à écarter leurs rappels de
     # mi-tableau (sauts de page des longs arrêtés). Sans en-tête reconnu, la première
     # rangée porte des dénominations : rien à comparer.
     entetes_du_tableau = _libelles_d_entete(entetes) if colonnes.entete_reconnu else ()
-    premiere_donnee = i_entetes + 1 if (decalage or colonnes.entete_reconnu) else 0
+    premiere_donnee = bandeaux + (i_entetes + 1 if (decalage or colonnes.entete_reconnu) else 0)
     return _Gabarit(colonnes, entetes_du_tableau, premiere_donnee, decalage)
 
 

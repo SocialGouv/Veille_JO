@@ -62,6 +62,17 @@ Les cas marqués ⚠ sont des **défauts connus et non corrigés** : ils n'ont p
   DÉDOUBLÉ dès qu'un autre texte du jour le nomme par sa marque : VORICONAZOLE au lieu
   de VFEND (22/05), TEMOCILLINE/NEGABAN (04/06), INFLIXIMAB/REMSIMA (02/07).
   📅 23/07/2026.
+- [ ] 🤖 **Bandeau de titre pleine largeur** (une seule cellule à colspan, ex. « Ancien
+  laboratoire exploitant... ») avant la vraie rangée d'en-têtes : jamais pris pour elle.
+  Défaut réparé le 04/08/2026 sur le JO du 30/07/2026 (transfert MEROPENEM BRADEX,
+  liste en sus L. 162-23-6, AGUETTANT → DEMOGEN) : sans ce filtre, le bandeau ET la
+  vraie rangée d'en-têtes sortaient en lignes fantômes (« ANCIEN LABORATOIRE
+  EXPLOITANT... », « DÉNOMINATION COMMUNE INTERNATIONALE »), et le CIP/UCD n'était
+  jamais lu — la vraie ligne MEROPENEM BRADEX restait invisible. Corollaire découvert
+  au même correctif : le pont CIP (`_cles_canoniques_par_cip`) ne canonicalise plus que
+  la RACINE, jamais le laboratoire — sinon, une fois le CIP correctement lu, ce même
+  transfert réattribuait tout le produit à l'ANCIEN laboratoire (le nouveau
+  disparaissait sans anomalie).
 - [ ] 🤖 **Arrêtés de libellé à deux blocs** (état abrogé à gauche, nouveau à droite,
   deux rangées d'en-tête) : la présentation décrite est celle de DROITE (nom, CIP), le
   bloc de gauche ne livre que l'exploitant cédant, et aucune rangée d'en-tête ne sort en
@@ -123,6 +134,15 @@ Les cas marqués ⚠ sont des **défauts connus et non corrigés** : ils n'ont p
   rapprochement deviné. 📅 04/06, 02/07/2026.
 - [ ] 🤖 Le pont est insensible à l'**ordre du sommaire** : un avis listé AVANT l'arrêté
   du même produit donne le même résultat (l'élection de la clé est une pré-passe).
+- [ ] ⚠ **Défaut connu (30/07/2026)** : un même arrêté de radiation peut publier SES
+  DEUX tableaux (liste collectivités en CIP-13, liste L. 162-17 en codes UCD) avec des
+  codes de préfixe différents (34009 vs 34008) pour les MÊMES spécialités — le pont
+  CIP/UCD ne peut pas les relier (identifiants distincts, jamais un doublon de codage).
+  EPIRUBICINE INTSEL CHIMOS et EPOPROSTENOL INTSEL CHIMOS sortent chacun en 2 lignes de
+  radiation (dénomination complète et libellé UCD abrégé « EPIRUBICINE INT »). Aucun
+  médicament perdu (les deux lignes disent bien « radié »), juste dédoublé. Fusion
+  automatique jugée trop risquée (nécessiterait une clé de mapping labo à 3 lettres —
+  « INT » → INTSEL CHIMOS SAS — qui matcherait en faux positif d'autres dénominations).
 - [ ] 🤖 Les lignes sortent dans l'**ordre d'apparition** dans les textes du JO, et les
   anomalies de racine sans section précèdent le récapitulatif « à vérifier ».
 - [ ] 🤖 Un dosage à séparateur de milliers ne scinde pas la racine
