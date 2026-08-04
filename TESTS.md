@@ -82,6 +82,15 @@ Les cas marqués ⚠ sont des **défauts connus et non corrigés** : ils n'ont p
 
 - [ ] 🤖 Les dosages/conditionnements d'un même nom fondent en UNE ligne
   (les 5 LACOSAMIDE → « LACOSAMIDE »). 📅 22/07/2026.
+- [ ] 🤖 Les unités de radioactivité (Bq/Ci et préfixes SI — GBq, MBq, kBq, mCi…)
+  comptent comme un dosage comme un autre (GALLIAPHARM, 8 présentations de 1,11 à
+  3,70 GBq → « GALLIAPHARM »). 📅 30/07/2026.
+  - [ ] ⚠ **Défaut connu (30/07/2026)** : une des 8 dénominations réelles de
+    GALLIAPHARM est malformée à la source (« GALLIAPHARM 1,11 GBQ / CHLORURE DE
+    GALLIUM ) » — parenthèse orpheline, « / » à la place d'une parenthèse ouvrante) et
+    ne fond pas avec les 7 autres. Assumé : une heuristique de coupe sur « / »
+    casserait AZELASTINE CHLORHYDRATE/FLUTICASONE PROPIONATE, où le « / » fait partie
+    du nom.
 - [ ] 🤖 Un générique multi-laboratoires garde une ligne PAR laboratoire
   (DARUNAVIR Viatris + Zentiva = 2 lignes ; AZELASTINE = 6 lignes). 📅 07/07/2026.
 - [ ] 🤖 Le nom racine résiste aux pièges : parenthèses (même non fermées), dosages

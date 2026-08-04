@@ -114,6 +114,31 @@ class TestNomRacine(unittest.TestCase):
             "LACOSAMIDE G.L. PHARMA 50 mg, comprimés pelliculés sécables (B/56)",
             "LACOSAMIDE",
         ),
+        # [30/07] Radiopharmaceutiques : les dosages en unités de radioactivité (Bq/Ci
+        # et préfixes SI) doivent fondre comme tout autre dosage — GALLIAPHARM (JO du
+        # 30/07/2026) sortait en 8 lignes, une par dosage (1,11 à 3,70 GBq), faute
+        # d'unité reconnue par MOTIF_DOSAGE.
+        ("GALLIAPHARM 1,48 GBQ", "GALLIAPHARM"),
+        ("GALLIAPHARM 1,85 GBQ", "GALLIAPHARM"),
+        ("GALLIAPHARM 3,70 GBQ", "GALLIAPHARM"),
+        (
+            "OCTREOSCAN 111 MBq, poudre pour préparation radiopharmaceutique",
+            "OCTREOSCAN",
+        ),
+        (
+            "SOMATOSCAN 5 mCi, trousse pour préparation radiopharmaceutique",
+            "SOMATOSCAN",
+        ),
+        # [30/07] Résidu accepté : cette dénomination réelle est malformée à la source
+        # (parenthèse orpheline, « / » à la place d'une parenthèse ouvrante) — elle ne
+        # fond pas avec les 7 autres dosages de GALLIAPHARM. Volontaire (cf. plan du
+        # 04/08/2026) : une heuristique qui couperait sur « / » casserait le cas
+        # AZELASTINE CHLORHYDRATE/FLUTICASONE PROPIONATE ci-dessous, où le « / » fait
+        # partie du nom.
+        (
+            "GALLIAPHARM 1,11 GBQ / CHLORURE DE GALLIUM )",
+            "GALLIAPHARM / CHLORURE DE GALLIUM )",
+        ),
         # [29/07] Calibrages des runs de test réels : dosages en toutes lettres,
         # parenthèse non fermée, labos constatés (ACCORD, HIKMA, VIATRIS, STRAGEN…).
         (

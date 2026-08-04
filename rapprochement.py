@@ -124,7 +124,14 @@ MOTIF_DOSAGE = re.compile(
     # Unités en toutes lettres constatées aux runs de test du 29/07/2026
     # (« 137 MICROGRAMMES/50 MICROGRAMMES », AZELASTINE au JO du 07/07) : les formes
     # longues AVANT les courtes, sinon « g » matche au milieu de « grammes ».
-    r"(?:(?:microgrammes?|milligrammes?|grammes?|mg|ml|µg|ug|g|ui|unités?|unites?)\b|%)"
+    # Unités de radioactivité (Bq/Ci et préfixes SI) ajoutées le 04/08/2026 après
+    # GALLIAPHARM (radiopharmaceutique, JO du 30/07/2026) : ses 8 dosages (1,11 à
+    # 3,70 GBq) sortaient chacun sur une racine distincte, faute d'unité reconnue.
+    # « g » (seul) reste TOUJOURS en dernier : sinon il matcherait le « G » de « GBq ».
+    r"(?:(?:microgrammes?|milligrammes?|grammes?|"
+    r"gigabecquerels?|megabecquerels?|kilobecquerels?|becquerels?|GBq|MBq|kBq|Bq|"
+    r"millicuries?|microcuries?|curies?|mCi|µCi|Ci|"
+    r"mg|ml|µg|ug|ui|unités?|unites?|g)\b|%)"
     r"(?:\s*/\s*[0-9]*\s*(?:ml|dose)\b|\s+par\s+ml\b)?",
     re.IGNORECASE,
 )
