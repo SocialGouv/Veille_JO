@@ -135,6 +135,19 @@ retry. **No mail ever means a failure** — a day with nothing to report still s
   changing behavior in `analyse.py` or `rapprochement.py` — many edge cases encode a
   specific past incident.
 
+## Publication GitHub Pages (CI)
+
+`.github/workflows/publier-pages.yml` runs `main.py` daily (cron, plus manual
+`workflow_dispatch`) on a Linux GitHub Actions runner and republishes the day's output
+to the `gh-pages` branch as a static site (`archive/<date>.html`/`.xlsx` + a regenerated
+`index.html`). `scripts/publier_page.py` is the glue: it does **not** duplicate
+`main.py`'s date-resolution logic, it just globs whatever dated file `main.py` already
+wrote to `sorties/` for the run that just happened (`corps_mail_<date>.html`, or
+`alerte_<date>.html` on failure) plus `veille_jo_<date>.xlsx` if present. If you rename
+any of these three output filename patterns in `notification.py`/`export.py`, update
+`scripts/publier_page.py`'s glob patterns in the same change — nothing else checks that
+this contract still holds.
+
 ## Tests
 
 - `tests/` is not a package (no `__init__.py`); always invoke with `-t tests`.

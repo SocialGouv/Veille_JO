@@ -80,6 +80,15 @@ connu — référentiel public BDPM (téléchargé dans `donnees/`, au plus une 
 semaine) et historique des prix déjà vus au JO. Sens introuvable ou contradictoire :
 la ligne sort en « Hausse de prix (à vérifier) », à reclasser à la relecture.
 
+## Publication GitHub Pages
+
+En plus du brouillon Outlook/fichier HTML local, une exécution automatique quotidienne
+(GitHub Actions, cf. `.github/workflows/publier-pages.yml`) republie le digest du jour sur
+une page publique du dépôt : **https://socialgouv.github.io/Veille_JO/**. La page
+d'accueil montre la dernière publication et une archive de tous les jours précédents
+(digest HTML + Excel téléchargeable). Cette publication est un simple miroir en lecture
+seule — elle ne remplace pas la relecture et l'envoi manuel du mail décrits ci-dessus.
+
 ## Pour aller plus loin
 
 - [TUTORIEL.md](TUTORIEL.md) — le quotidien pas à pas, et que faire quand ça coince ;
