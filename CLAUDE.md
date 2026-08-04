@@ -119,7 +119,7 @@ retry. **No mail ever means a failure** — a day with nothing to report still s
 - Ambiguity is always surfaced, never silently resolved: look for the
   `"(à vérifier)"` / `"à compléter manuellement"` conventions in `rapprochement.py`
   and `analyse.py` before "fixing" a case that looks like a gap — it may be
-  intentional per `tests.md`.
+  intentional per `TESTS.md`.
 - `config.py` is the single place for all tunables, keyword lists, and mapping
   tables (`MOTS_CLES`, `MOTIFS_CLASSIFICATION`, `MOTIFS_LISTES`,
   `FORMES_GALENIQUES`, `SELS_ET_ESTERS`, `MAPPING_LABOS`); secrets never go here —
@@ -129,7 +129,7 @@ retry. **No mail ever means a failure** — a day with nothing to report still s
 - `date.txt` at the repo root is the non-technical "replay a different day" UI: it's
   read once per run, then its content is cleared (never deleted) at the end of
   every run regardless of success/failure, per `main.vider_fichier_date`.
-- [tests.md](tests.md) is the authoritative business-behavior checklist (with real
+- [TESTS.md](TESTS.md) is the authoritative business-behavior checklist (with real
   JO dates as regression references, 🤖 = covered by an automated test, 📅 = verified
   via a real-date replay, ⚠ = known, deliberately-unfixed defect). Consult it before
   changing behavior in `analyse.py` or `rapprochement.py` — many edge cases encode a

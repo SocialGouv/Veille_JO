@@ -32,26 +32,18 @@ exécute `main.py`, qui enchaîne tout seul toutes les étapes (lecture du JO vi
 filtrage, analyse, consolidation, Excel, brouillon de mail). Les autres fichiers `.py`
 du dossier sont les modules de ce pipeline, pas des programmes à lancer. Seules
 exceptions, à la main et seulement si besoin : `diagnostic.py` (test des accès) et le
-dossier `tests/` (vérifications hors ligne, pour développeur). Sur poste Linux de
-développement, `lancer_veille.sh` est l'équivalent du `.bat`.
-
-Tests hors ligne (aucune clé, aucun réseau), depuis la racine du projet :
-
-```bat
-.venv\Scripts\python.exe -m unittest discover -s tests -t tests
-```
-
-154 tests, ~0,3 s. La recette sur pièces se rejoue avec
-`python tests/compare_cible.py <généré.xlsx> <cible.xlsx>`.
+dossier `tests/` (vérifications hors ligne, pour développeur — voir
+[TESTS.md](TESTS.md) pour les lancer). Sur poste Linux de développement,
+`lancer_veille.sh` est l'équivalent du `.bat`.
 
 ## Flux externes et dossier `donnees/`
 
 Deux accès réseau sortants, à faire ouvrir si le poste passe par un proxy filtrant :
 
-| Flux | Hôte | Rôle | Si bloqué |
-|---|---|---|---|
-| API Légifrance | `oauth.piste.gouv.fr`, `api.piste.gouv.fr` | source des textes | **bloquant** : pas de veille (alerte + code retour 1) |
-| Référentiel des prix (BDPM) | `base-donnees-publique.medicaments.gouv.fr` | prix antérieurs, pour orienter les avis de prix « neutres » | non bloquant : ces avis sortent « à vérifier » |
+| Flux                        | Hôte                                        | Rôle                                                        | Si bloqué                                             |
+| --------------------------- | ------------------------------------------- | ----------------------------------------------------------- | ----------------------------------------------------- |
+| API Légifrance              | `oauth.piste.gouv.fr`, `api.piste.gouv.fr`  | source des textes                                           | **bloquant** : pas de veille (alerte + code retour 1) |
+| Référentiel des prix (BDPM) | `base-donnees-publique.medicaments.gouv.fr` | prix antérieurs, pour orienter les avis de prix « neutres » | non bloquant : ces avis sortent « à vérifier »        |
 
 Le dossier `donnees/` (créé au premier run, hors dépôt) contient le cache BDPM
 (`CIS_CIP_bdpm.txt`, re-téléchargé au plus une fois par semaine ; en cas de panne
@@ -61,20 +53,20 @@ c'est la seule mémoire des prix vus par l'outil.
 
 ## Clé d'accès PISTE (la seule du projet)
 
-| Clé (`.env`) | Obtention | À expiration / révocation |
-|---|---|---|
+| Clé (`.env`)                              | Obtention                                                                                                                              | À expiration / révocation                                                                    |
+| ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
 | `PISTE_CLIENT_ID` / `PISTE_CLIENT_SECRET` | Compte sur [piste.gouv.fr](https://piste.gouv.fr) → créer une application → souscrire à l'**API Légifrance** → copier client id/secret | Régénérer le secret dans l'application PISTE, recopier dans `.env`, relancer `diagnostic.py` |
 
 Le token d'exécution (validité ~1 h) est géré automatiquement.
 
 ## Réglages utiles (`config.py`)
 
-| Clé | Défaut livré | Effet |
-|---|---|---|
-| `MAIL_MODE` | `"brouillon_outlook"` | `"html"` : pas d'Outlook, le fichier `corps_mail_<date>.html` s'ouvre dans le navigateur pour copier-coller. Le HTML est écrit dans tous les cas. |
-| `ENVOI_AUTOMATIQUE` | `False` | `True` : envoie le mail sans relecture (`.Send()`). À n'activer qu'après une période de confiance. |
-| `POLICE` | `"Marianne"` | `"Arial"` si Marianne absente du poste (simple nom de police : aucun plantage, juste le rendu). |
-| `ORIENTATION_PRIX_AUTO` | `True` | Oriente les avis de prix qui ne disent ni hausse ni baisse, par comparaison au dernier prix connu (BDPM + historique local). `False` : ces avis restent tous « à vérifier » (comportement d'avant le 29/07/2026). |
+| Clé                     | Défaut livré          | Effet                                                                                                                                                                                                             |
+| ----------------------- | --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `MAIL_MODE`             | `"brouillon_outlook"` | `"html"` : pas d'Outlook, le fichier `corps_mail_<date>.html` s'ouvre dans le navigateur pour copier-coller. Le HTML est écrit dans tous les cas.                                                                 |
+| `ENVOI_AUTOMATIQUE`     | `False`               | `True` : envoie le mail sans relecture (`.Send()`). À n'activer qu'après une période de confiance.                                                                                                                |
+| `POLICE`                | `"Marianne"`          | `"Arial"` si Marianne absente du poste (simple nom de police : aucun plantage, juste le rendu).                                                                                                                   |
+| `ORIENTATION_PRIX_AUTO` | `True`                | Oriente les avis de prix qui ne disent ni hausse ni baisse, par comparaison au dernier prix connu (BDPM + historique local). `False` : ces avis restent tous « à vérifier » (comportement d'avant le 29/07/2026). |
 
 Rejouer une date au-delà d'environ 3 mois (`NB_ELEMENT_LASTNJO = 90`, la profondeur de
 rejeu de l'API) : augmenter cette valeur dans `config.py`.
@@ -101,14 +93,14 @@ Sans tâche planifiée, le double-clic du matin suffit.
 
 ## Pannes courantes
 
-| Symptôme | Cause probable | Remède |
-|---|---|---|
-| `PISTE token : KO` au diagnostic, ou `401` en boucle dans le log | Token/compte PISTE expiré ou désactivé, secret régénéré | Se connecter sur piste.gouv.fr, vérifier l'application et la souscription Légifrance, régénérer le secret, mettre à jour `.env` |
-| Des indications affichent « à compléter manuellement » | L'arrêté ne porte pas l'indication dans la section attendue (tournure inhabituelle) — le reste de la ligne est complet et fiable | Cliquer le lien `Site LégiFrance` de la ligne, recopier l'indication exacte ; tournure récurrente → motif à étendre dans `analyse.py` |
-| « JO introuvable pour la date … » le matin | JO pas encore publié (vers 2 h-3 h, parfois plus tard) ou jour sans JO (certains lundis/lendemains fériés) | Relancer plus tard dans la matinée (la tâche planifiée réessaie seule 3 fois toutes les 30 min) |
-| Le brouillon Outlook ne s'affiche pas | Outlook fermé, ou automatisation COM interdite par la DSI | Le run reste en succès : ouvrir `sorties/corps_mail_<date>.html` (écrit dans tous les cas), copier-coller dans un mail ; durablement : `MAIL_MODE = "html"` |
-| `Référentiel de prix indisponible` ou `Téléchargement BDPM impossible` dans le log, beaucoup de lignes « Hausse de prix (à vérifier) » | BDPM injoignable (proxy, site en panne) ou premier run sans historique | Non bloquant, la veille aboutit : ouvrir l'accès à `base-donnees-publique.medicaments.gouv.fr` ; l'historique local se remplit ensuite tout seul et prend le relais |
-| Excel non écrit, log `Fichier cible ouvert` | le `veille_jo_<date>.xlsx` du jour est ouvert dans Excel | Aucune perte : le fichier est écrit suffixé de l'heure ; fermer Excel avant le run suivant |
+| Symptôme                                                                                                                               | Cause probable                                                                                                                   | Remède                                                                                                                                                              |
+| -------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `PISTE token : KO` au diagnostic, ou `401` en boucle dans le log                                                                       | Token/compte PISTE expiré ou désactivé, secret régénéré                                                                          | Se connecter sur piste.gouv.fr, vérifier l'application et la souscription Légifrance, régénérer le secret, mettre à jour `.env`                                     |
+| Des indications affichent « à compléter manuellement »                                                                                 | L'arrêté ne porte pas l'indication dans la section attendue (tournure inhabituelle) — le reste de la ligne est complet et fiable | Cliquer le lien `Site LégiFrance` de la ligne, recopier l'indication exacte ; tournure récurrente → motif à étendre dans `analyse.py`                               |
+| « JO introuvable pour la date … » le matin                                                                                             | JO pas encore publié (vers 2 h-3 h, parfois plus tard) ou jour sans JO (certains lundis/lendemains fériés)                       | Relancer plus tard dans la matinée (la tâche planifiée réessaie seule 3 fois toutes les 30 min)                                                                     |
+| Le brouillon Outlook ne s'affiche pas                                                                                                  | Outlook fermé, ou automatisation COM interdite par la DSI                                                                        | Le run reste en succès : ouvrir `sorties/corps_mail_<date>.html` (écrit dans tous les cas), copier-coller dans un mail ; durablement : `MAIL_MODE = "html"`         |
+| `Référentiel de prix indisponible` ou `Téléchargement BDPM impossible` dans le log, beaucoup de lignes « Hausse de prix (à vérifier) » | BDPM injoignable (proxy, site en panne) ou premier run sans historique                                                           | Non bloquant, la veille aboutit : ouvrir l'accès à `base-donnees-publique.medicaments.gouv.fr` ; l'historique local se remplit ensuite tout seul et prend le relais |
+| Excel non écrit, log `Fichier cible ouvert`                                                                                            | le `veille_jo_<date>.xlsx` du jour est ouvert dans Excel                                                                         | Aucune perte : le fichier est écrit suffixé de l'heure ; fermer Excel avant le run suivant                                                                          |
 
 ## À valider sur le poste cible (Windows ministériel)
 

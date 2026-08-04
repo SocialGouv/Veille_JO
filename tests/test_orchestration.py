@@ -31,7 +31,7 @@ AVIS_NEUTRE = """
 """
 
 TITRE = "Avis relatif aux prix de spécialités pharmaceutiques"
-CHEMIN_EXCEL = Path("veille_jo_2026-07-07.xlsx")   # jamais écrit : `exporter` est simulé
+CHEMIN_EXCEL = Path("veille_jo_2026-07-07.xlsx")  # jamais écrit : `exporter` est simulé
 
 
 class _ClientPisteFactice:
@@ -60,7 +60,7 @@ class _ClientPisteFactice:
 class TestRecapitulatifDesAnomalies(unittest.TestCase):
     """Les anomalies d'extraction (texte non téléchargé, contenu vide) arrivent EN TÊTE
     du récapitulatif : ce sont les seules qu'aucune ligne du tableau ne laisse deviner
-    (§ « Rendus » de tests.md). Les anomalies de consolidation les suivent."""
+    (§ « Rendus » de TESTS.md). Les anomalies de consolidation les suivent."""
 
     def setUp(self):
         self.sommaire = [
@@ -68,11 +68,16 @@ class TestRecapitulatifDesAnomalies(unittest.TestCase):
             ("JORFTEXT000054200002", f"{TITRE} (contenu vide)"),
             ("JORFTEXT000054200003", TITRE),
         ]
-        self.client = _ClientPisteFactice(self.sommaire, {
-            "JORFTEXT000054200001": ErreurPiste("502 Bad Gateway après 3 tentatives"),
-            "JORFTEXT000054200002": "   \n  ",
-            "JORFTEXT000054200003": AVIS_NEUTRE,
-        })
+        self.client = _ClientPisteFactice(
+            self.sommaire,
+            {
+                "JORFTEXT000054200001": ErreurPiste(
+                    "502 Bad Gateway après 3 tentatives"
+                ),
+                "JORFTEXT000054200002": "   \n  ",
+                "JORFTEXT000054200003": AVIS_NEUTRE,
+            },
+        )
         self.exportes: list = []
         self.notifies: list = []
 
@@ -88,35 +93,51 @@ class TestRecapitulatifDesAnomalies(unittest.TestCase):
     def _executer(self) -> int:
         # Le référentiel de prix est hors périmètre ici (réseau, cache BDPM) : bascule
         # à False, l'avis neutre reste donc « à vérifier », comme au repli du CEPS.
-        with mock.patch.object(main, "ClientPiste", lambda *_: self.client), \
-                mock.patch.object(config, "ORIENTATION_PRIX_AUTO", False), \
-                mock.patch.object(main, "exporter", self._exporter), \
-                mock.patch.object(main, "notifier", self._notifier):
+        with (
+            mock.patch.object(main, "ClientPiste", lambda *_: self.client),
+            mock.patch.object(config, "ORIENTATION_PRIX_AUTO", False),
+            mock.patch.object(main, "exporter", self._exporter),
+            mock.patch.object(main, "notifier", self._notifier),
+        ):
             return main.executer(DATE_JO)
 
     def test_anomalies_d_extraction_en_tete_du_recapitulatif(self):
         code = self._executer()
 
-        self.assertEqual(code, 0)      # deux textes perdus ≠ échec du run : le mail part
+        self.assertEqual(code, 0)  # deux textes perdus ≠ échec du run : le mail part
         (resultat, chemin_excel) = self.notifies[0]
         self.assertEqual(len(self.notifies), 1)
-        self.assertEqual(self.exportes, [resultat])       # même objet à l'Excel et au mail
+        self.assertEqual(self.exportes, [resultat])  # même objet à l'Excel et au mail
         self.assertEqual(chemin_excel, CHEMIN_EXCEL)
 
         # Le seul texte exploitable a bien produit sa ligne (et donc son anomalie
         # de consolidation, l'avis n'étant pas orienté).
-        self.assertEqual([(l.produit, l.laboratoire) for l in resultat.lignes],
-                         [("PRODUIT NEUTRE", "LABO Z")])
+        self.assertEqual(
+            [(l.produit, l.laboratoire) for l in resultat.lignes],
+            [("PRODUIT NEUTRE", "LABO Z")],
+        )
 
         self.assertEqual(len(resultat.anomalies), 3)
         extraction_1, extraction_2, consolidation = resultat.anomalies
-        self.assertTrue(extraction_1.startswith("Texte non analysé (échec de téléchargement) : "),
-                        extraction_1)
-        self.assertIn("https://www.legifrance.gouv.fr/jorf/id/JORFTEXT000054200001", extraction_1)
-        self.assertTrue(extraction_2.startswith("Texte au contenu vide côté API, à lire en ligne : "),
-                        extraction_2)
-        self.assertIn("https://www.legifrance.gouv.fr/jorf/id/JORFTEXT000054200002", extraction_2)
-        self.assertTrue(consolidation.startswith("PRODUIT NEUTRE : à vérifier — "), consolidation)
+        self.assertTrue(
+            extraction_1.startswith("Texte non analysé (échec de téléchargement) : "),
+            extraction_1,
+        )
+        self.assertIn(
+            "https://www.legifrance.gouv.fr/jorf/id/JORFTEXT000054200001", extraction_1
+        )
+        self.assertTrue(
+            extraction_2.startswith(
+                "Texte au contenu vide côté API, à lire en ligne : "
+            ),
+            extraction_2,
+        )
+        self.assertIn(
+            "https://www.legifrance.gouv.fr/jorf/id/JORFTEXT000054200002", extraction_2
+        )
+        self.assertTrue(
+            consolidation.startswith("PRODUIT NEUTRE : à vérifier — "), consolidation
+        )
 
         # Les trois textes retenus ont été demandés une fois chacun, dans l'ordre du
         # sommaire (la déduplication d'un doublon de sommaire, elle, est du ressort

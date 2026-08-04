@@ -1,12 +1,34 @@
 # Cas métier de non-régression — veille JO CEPS
 
 Liste des comportements à vérifier avant de valider une évolution. Deux moyens :
-la suite automatisée (`python -m unittest discover -s tests -t tests` depuis la racine
-du projet — 154 tests, ~0,3 s, hors ligne ; le `-t tests` est nécessaire, `tests/` n'est
-pas un paquet) qui couvre chaque cas marqué 🤖, et le rejeu de dates réelles (`date.txt`
-ou `--date`, cas marqués 📅 avec leur date de référence). L'attendu détaillé des dates
-réelles est dans [result.md](result.md) — dont la question n° 6 (DCI ou nom commercial)
-a depuis été tranchée, voir « Spécialité, jamais la molécule » ci-dessous.
+la suite automatisée (ci-dessous) qui couvre chaque cas marqué 🤖, et le rejeu de dates
+réelles (`date.txt` ou `--date`, cas marqués 📅 avec leur date de référence). L'attendu
+détaillé des dates réelles est dans [result.md](result.md) — dont la question n° 6 (DCI
+ou nom commercial) a depuis été tranchée, voir « Spécialité, jamais la molécule »
+ci-dessous.
+
+## Lancer les tests
+
+Depuis la racine du projet, hors ligne (aucune clé, aucun réseau) :
+
+```bash
+python -m unittest discover -s tests -t tests
+```
+
+154 tests, ~0,3 s. Le `-t tests` est nécessaire (`tests/` n'est pas un paquet). Pour ne
+lancer qu'un module, une classe ou un test précis :
+
+```bash
+python -m unittest tests.test_rapprochement.TestConsolider.test_generique_multi_labos -t tests
+```
+
+Recette sur pièces (rejoue le cas du 28/05/2026 depuis une fixture et compare au
+fichier cible historique) :
+
+```bash
+python tests/generer_depuis_fixture.py
+python tests/compare_cible.py sorties/veille_jo_2026-05-28.xlsx tests/fixtures/veille_jo_2026-05-28_CIBLE.xlsx
+```
 
 Les cas marqués ⚠ sont des **défauts connus et non corrigés** : ils n'ont pas de test
 (un test vert les figerait) et attendent un arbitrage ou un correctif.

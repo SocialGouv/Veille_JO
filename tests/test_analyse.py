@@ -163,24 +163,29 @@ AVIS_PFHT = """
 
 class TestNettoyage(unittest.TestCase):
     def test_visas_considerants_et_html_supprimes(self):
-        brut = ("<div>Vu le code de la sécurité sociale, notamment son article L. 162-16-4 ;\n"
-                "Vu l'avis du comité économique des produits de santé ;\n"
-                "Considérant que les conditions sont réunies ;\n"
-                "Arrête :\nArticle 1er : les prix sont fixés comme suit.</div>" + TABLE_INSCRIPTION)
+        brut = (
+            "<div>Vu le code de la sécurité sociale, notamment son article L. 162-16-4 ;\n"
+            "Vu l'avis du comité économique des produits de santé ;\n"
+            "Considérant que les conditions sont réunies ;\n"
+            "Arrête :\nArticle 1er : les prix sont fixés comme suit.</div>"
+            + TABLE_INSCRIPTION
+        )
         texte, tableaux, _segments = analyse.nettoyer_texte(brut)
         self.assertNotIn("Vu le code", texte)
         self.assertNotIn("Considérant", texte)
-        self.assertNotIn("<", texte)                      # plus de HTML résiduel
-        self.assertIn("Article 1er", texte)               # le corps utile est conservé
-        self.assertEqual(len(tableaux), 1)                 # les tables sont extraites à part
-        self.assertNotIn("WEGOVY", texte)                  # ... et sorties du texte nettoyé
+        self.assertNotIn("<", texte)  # plus de HTML résiduel
+        self.assertIn("Article 1er", texte)  # le corps utile est conservé
+        self.assertEqual(len(tableaux), 1)  # les tables sont extraites à part
+        self.assertNotIn("WEGOVY", texte)  # ... et sorties du texte nettoyé
 
     def test_balises_en_ligne_fondues_dans_la_phrase(self):
         """Exposants, marques et liens ne sortent jamais sur leur propre ligne
         (« kg/m² » → « 2 » isolé, « MOUNJARO® » → « ® » isolé, constaté au 28/05)."""
-        brut = ("<p>IMC initial ≥ 40 kg/m<sup>2</sup> sans comorbidité ;</p>"
-                "<p>bon usage de MOUNJARO<sup>®</sup> et document prévu au III de "
-                "l'<a href='x'>article R. 161-45 du code</a>.</p>")
+        brut = (
+            "<p>IMC initial ≥ 40 kg/m<sup>2</sup> sans comorbidité ;</p>"
+            "<p>bon usage de MOUNJARO<sup>®</sup> et document prévu au III de "
+            "l'<a href='x'>article R. 161-45 du code</a>.</p>"
+        )
         texte, _, _ = analyse.nettoyer_texte(brut)
         self.assertIn("40 kg/m2 sans comorbidité", texte)
         self.assertIn("MOUNJARO® et document", texte)
@@ -196,32 +201,58 @@ class TestNettoyage(unittest.TestCase):
 
 class TestClassification(unittest.TestCase):
     CAS = [
-        ("Arrêté du 27 mai 2026 modifiant la liste des spécialités pharmaceutiques "
-         "remboursables aux assurés sociaux", "arrete_inscription"),
-        ("Arrêté du 27 mai 2026 modifiant la liste des spécialités pharmaceutiques agréées "
-         "à l'usage des collectivités et divers services publics", "arrete_inscription"),
+        (
+            "Arrêté du 27 mai 2026 modifiant la liste des spécialités pharmaceutiques "
+            "remboursables aux assurés sociaux",
+            "arrete_inscription",
+        ),
+        (
+            "Arrêté du 27 mai 2026 modifiant la liste des spécialités pharmaceutiques agréées "
+            "à l'usage des collectivités et divers services publics",
+            "arrete_inscription",
+        ),
         # Titres LES et rétrocession (mots-clefs utilisatrice, mails des 22-23/07/2026).
-        ("Arrêté du 2 juin 2026 modifiant la liste des spécialités pharmaceutiques prises "
-         "en charge en sus des prestations d'hospitalisation mentionnée à l'article "
-         "L. 162-22-7 du code de la sécurité sociale", "arrete_inscription"),
-        ("Arrêté du 30 juin 2026 modifiant la liste des spécialités pharmaceutiques prises "
-         "en charge en sus des prestations d'hospitalisation mentionnée à l'article "
-         "L. 162-23-6 du code de la sécurité sociale", "arrete_inscription"),
-        ("Arrêté du 21 juillet 2026 modifiant la liste des médicaments pouvant être vendus "
-         "au public mentionnée à l'article L. 5126-6 du code de la santé publique",
-         "arrete_inscription"),
-        ("Arrêté du 20 mai 2026 portant radiation de spécialités pharmaceutiques de la "
-         "liste mentionnée à l'article L. 162-22-7 du code de la sécurité sociale",
-         "arrete_radiation"),
+        (
+            "Arrêté du 2 juin 2026 modifiant la liste des spécialités pharmaceutiques prises "
+            "en charge en sus des prestations d'hospitalisation mentionnée à l'article "
+            "L. 162-22-7 du code de la sécurité sociale",
+            "arrete_inscription",
+        ),
+        (
+            "Arrêté du 30 juin 2026 modifiant la liste des spécialités pharmaceutiques prises "
+            "en charge en sus des prestations d'hospitalisation mentionnée à l'article "
+            "L. 162-23-6 du code de la sécurité sociale",
+            "arrete_inscription",
+        ),
+        (
+            "Arrêté du 21 juillet 2026 modifiant la liste des médicaments pouvant être vendus "
+            "au public mentionnée à l'article L. 5126-6 du code de la santé publique",
+            "arrete_inscription",
+        ),
+        (
+            "Arrêté du 20 mai 2026 portant radiation de spécialités pharmaceutiques de la "
+            "liste mentionnée à l'article L. 162-22-7 du code de la sécurité sociale",
+            "arrete_radiation",
+        ),
         ("Avis relatif aux prix de spécialités pharmaceutiques", "avis_prix"),
-        ("Décision du 12 mai 2026 de l'Union nationale des caisses d'assurance maladie "
-         "relative aux taux de participation de l'assuré applicables à des spécialités "
-         "pharmaceutiques", "decision_taux"),
-        ("Avis relatif à la majoration du prix de spécialités pharmaceutiques",
-         "avis_hausse_prix"),
-        ("Avis relatif aux baisses de prix de spécialités pharmaceutiques", "avis_baisse_prix"),
-        ("Avis relatif à l'extension d'indication d'une spécialité pharmaceutique",
-         "extension_indication"),
+        (
+            "Décision du 12 mai 2026 de l'Union nationale des caisses d'assurance maladie "
+            "relative aux taux de participation de l'assuré applicables à des spécialités "
+            "pharmaceutiques",
+            "decision_taux",
+        ),
+        (
+            "Avis relatif à la majoration du prix de spécialités pharmaceutiques",
+            "avis_hausse_prix",
+        ),
+        (
+            "Avis relatif aux baisses de prix de spécialités pharmaceutiques",
+            "avis_baisse_prix",
+        ),
+        (
+            "Avis relatif à l'extension d'indication d'une spécialité pharmaceutique",
+            "extension_indication",
+        ),
         ("Arrêté portant nomination au conseil d'administration", "autre"),
     ]
 
@@ -237,11 +268,10 @@ class TestClassification(unittest.TestCase):
         oriente = analyse.orienter_avis_prix("avis_prix", "prix diminué à compter du…")
         self.assertEqual(oriente, "avis_baisse_prix")
         oriente = analyse.orienter_avis_prix("avis_prix", "les prix sont fixés ainsi")
-        self.assertEqual(oriente, "avis_prix")            # non orienté, PAS « baisse »
-
+        self.assertEqual(oriente, "avis_prix")  # non orienté, PAS « baisse »
 
     def test_avis_annoncant_les_deux_sens_marque_le_prix_et_non_la_classification(self):
-        """Piège MORPHINE (tests.md) : un avis qui annonce une majoration ET une baisse
+        """Piège MORPHINE (TESTS.md) : un avis qui annonce une majoration ET une baisse
         reste non orienté, et sort marqué `prix_deux_sens` — c'est ce marquage qui interdit
         au référentiel de prix de trancher en aval (rapprochement.py).
 
@@ -257,18 +287,24 @@ class TestClassification(unittest.TestCase):
         (effet de bord corrigé le 29/07/2026, second tour).
         """
         titre = "Avis relatif aux prix de spécialités pharmaceutiques"
-        deux_sens = ("<p>Le prix de la spécialité visée ci-dessous est majoré ; les prix "
-                     "des autres présentations sont en baisse.</p>" + TABLE_INSCRIPTION)
-        resultat = analyse.analyser_texte_deterministe("JORFTEXT000054144856", titre,
-                                                      deux_sens)
-        self.assertEqual(resultat.type_texte, "avis_prix")   # non orienté, jamais deviné
+        deux_sens = (
+            "<p>Le prix de la spécialité visée ci-dessous est majoré ; les prix "
+            "des autres présentations sont en baisse.</p>" + TABLE_INSCRIPTION
+        )
+        resultat = analyse.analyser_texte_deterministe(
+            "JORFTEXT000054144856", titre, deux_sens
+        )
+        self.assertEqual(resultat.type_texte, "avis_prix")  # non orienté, jamais deviné
         self.assertTrue(resultat.prix_deux_sens)
         self.assertFalse(resultat.ambigu)
 
-        neutre = ("<p>Les prix des spécialités visées ci-dessous sont fixés comme "
-                  "suit :</p>" + TABLE_INSCRIPTION)
-        resultat_neutre = analyse.analyser_texte_deterministe("JORFTEXT000054144858",
-                                                             titre, neutre)
+        neutre = (
+            "<p>Les prix des spécialités visées ci-dessous sont fixés comme "
+            "suit :</p>" + TABLE_INSCRIPTION
+        )
+        resultat_neutre = analyse.analyser_texte_deterministe(
+            "JORFTEXT000054144858", titre, neutre
+        )
         self.assertEqual(resultat_neutre.type_texte, "avis_prix")
         self.assertFalse(resultat_neutre.prix_deux_sens)
         self.assertFalse(resultat_neutre.ambigu)
@@ -281,14 +317,22 @@ class TestListesEtOrientationArretes(unittest.TestCase):
     def test_listes_du_titre(self):
         cas = [
             ("… remboursables aux assurés sociaux", ["SS"]),
-            ("… agréées à l'usage des collectivités et divers services publics",
-             ["Collectivité"]),
-            ("… mentionnée à l'article L. 162-22-7 du code de la sécurité sociale",
-             ["LES MCO"]),
-            ("… mentionnée à l'article L. 162-23-6 du code de la sécurité sociale",
-             ["LES SMR"]),
-            ("… mentionnée à l'article L. 5126-6 du code de la santé publique",
-             ["Rétrocession"]),
+            (
+                "… agréées à l'usage des collectivités et divers services publics",
+                ["Collectivité"],
+            ),
+            (
+                "… mentionnée à l'article L. 162-22-7 du code de la sécurité sociale",
+                ["LES MCO"],
+            ),
+            (
+                "… mentionnée à l'article L. 162-23-6 du code de la sécurité sociale",
+                ["LES SMR"],
+            ),
+            (
+                "… mentionnée à l'article L. 5126-6 du code de la santé publique",
+                ["Rétrocession"],
+            ),
             ("Arrêté portant nomination", []),
         ]
         for titre, attendu in cas:
@@ -298,31 +342,44 @@ class TestListesEtOrientationArretes(unittest.TestCase):
     def test_orientation_radiation_par_le_corps(self):
         """Arrêté au titre d'inscription dont le corps radie : reclassé radiation."""
         self.assertEqual(
-            analyse.orienter_arrete("arrete_inscription",
-                                    "Les spécialités suivantes sont radiées de la liste…"),
-            "arrete_radiation")
+            analyse.orienter_arrete(
+                "arrete_inscription",
+                "Les spécialités suivantes sont radiées de la liste…",
+            ),
+            "arrete_radiation",
+        )
 
     def test_orientation_libelle_par_le_corps(self):
         self.assertEqual(
-            analyse.orienter_arrete("arrete_inscription",
-                                    "Le libellé de la spécialité est remplacé par…"),
-            "modification_libelle")
+            analyse.orienter_arrete(
+                "arrete_inscription", "Le libellé de la spécialité est remplacé par…"
+            ),
+            "modification_libelle",
+        )
 
     def test_orientation_extension_par_le_corps(self):
         """Marqueur d'annexe constaté sur pièces (CYPROTERONE 07/07, SIRTURO 23/07) :
         « ANNEXE (1 extension d'indication) » dans un arrêté au titre d'inscription."""
-        corps = ("Arrêtent : ANNEXE (1 extension d'indication) La prise en charge de la "
-                 "spécialité ci-dessous est étendue à l'indication suivante : …")
-        self.assertEqual(analyse.orienter_arrete("arrete_inscription", corps),
-                         "extension_indication")
+        corps = (
+            "Arrêtent : ANNEXE (1 extension d'indication) La prise en charge de la "
+            "spécialité ci-dessous est étendue à l'indication suivante : …"
+        )
+        self.assertEqual(
+            analyse.orienter_arrete("arrete_inscription", corps), "extension_indication"
+        )
 
     def test_inscription_reste_inscription(self):
         self.assertEqual(
-            analyse.orienter_arrete("arrete_inscription",
-                                    "Sont inscrites sur la liste les spécialités suivantes."),
-            "arrete_inscription")
+            analyse.orienter_arrete(
+                "arrete_inscription",
+                "Sont inscrites sur la liste les spécialités suivantes.",
+            ),
+            "arrete_inscription",
+        )
         # Les autres types ne sont jamais réorientés.
-        self.assertEqual(analyse.orienter_arrete("avis_prix", "sont radiées"), "avis_prix")
+        self.assertEqual(
+            analyse.orienter_arrete("avis_prix", "sont radiées"), "avis_prix"
+        )
 
 
 class TestParsingTableaux(unittest.TestCase):
@@ -330,8 +387,10 @@ class TestParsingTableaux(unittest.TestCase):
         _, tableaux, _ = analyse.nettoyer_texte(TABLE_INSCRIPTION)
         produits = analyse.parser_tableaux(tableaux)
         self.assertEqual(len(produits), 2)
-        self.assertEqual(produits[0].denomination_brute,
-                         "WEGOVY 0,25 mg, solution injectable en stylo prérempli FlexTouch")
+        self.assertEqual(
+            produits[0].denomination_brute,
+            "WEGOVY 0,25 mg, solution injectable en stylo prérempli FlexTouch",
+        )
         self.assertEqual(produits[0].laboratoire_brut, "NOVO NORDISK")
 
     def test_table_sans_entete_ignore_cip_et_prix(self):
@@ -339,7 +398,9 @@ class TestParsingTableaux(unittest.TestCase):
         produits = analyse.parser_tableaux(tableaux)
         self.assertEqual(len(produits), 1)
         self.assertIn("FYCOMPA", produits[0].denomination_brute)
-        self.assertEqual(produits[0].laboratoire_brut, "EISAI")   # labo depuis la parenthèse
+        self.assertEqual(
+            produits[0].laboratoire_brut, "EISAI"
+        )  # labo depuis la parenthèse
 
     def test_sous_entete_intermediaire_jamais_un_produit(self):
         """Un en-tête répété au milieu des données (saut de page des longs tableaux
@@ -348,14 +409,16 @@ class TestParsingTableaux(unittest.TestCase):
         posé après le run réel du 21/07/2026)."""
         _, tableaux, _ = analyse.nettoyer_texte(TABLE_SOUS_ENTETE_INTERMEDIAIRE)
         produits = analyse.parser_tableaux(tableaux)
-        self.assertEqual([p.denomination_brute.split(" ")[0] for p in produits],
-                         ["LACOSAMIDE", "METHYLPHENIDATE"])
+        self.assertEqual(
+            [p.denomination_brute.split(" ")[0] for p in produits],
+            ["LACOSAMIDE", "METHYLPHENIDATE"],
+        )
         # Les deux vraies présentations gardent leur CIP : aucune ligne perdue au passage.
         self.assertEqual([p.cip for p in produits], ["3400930163160", "3400930339411"])
 
     def test_rangee_de_rappel_a_libelles_reels_jamais_un_produit(self):
         """Cas métier « aucune fausse ligne produit issue de la structure des tableaux »
-        (tests.md), rejoué sur les libellés RÉELS des arrêtés : une rangée dont la
+        (TESTS.md), rejoué sur les libellés RÉELS des arrêtés : une rangée dont la
         dénomination reproduit un en-tête du tableau (« Dénomination de la spécialité »)
         ne donne aucun produit, quelles que soient sa casse et son accentuation, et même
         si le reste de la rangée n'est pas un rappel exact (numéro de page).
@@ -368,17 +431,22 @@ class TestParsingTableaux(unittest.TestCase):
         """
         _, tableaux, _ = analyse.nettoyer_texte(TABLE_RAPPEL_ENTETES_REELS)
         produits = analyse.parser_tableaux(tableaux)
-        self.assertEqual([p.denomination_brute.split(" ")[0] for p in produits],
-                         ["WEGOVY", "LIKOZAM", "FYCOMPA", "GARDASIL"])
+        self.assertEqual(
+            [p.denomination_brute.split(" ")[0] for p in produits],
+            ["WEGOVY", "LIKOZAM", "FYCOMPA", "GARDASIL"],
+        )
         # Les vraies présentations gardent leur laboratoire et leur CIP au passage.
-        self.assertEqual([p.laboratoire_brut for p in produits],
-                         ["NOVO NORDISK", "ADVICENNE", "EISAI", "MSD FRANCE"])
-        self.assertEqual([p.cip for p in produits],
-                         ["3400930000001", "3400930000002", "3400930000003",
-                          "3400930000004"])
+        self.assertEqual(
+            [p.laboratoire_brut for p in produits],
+            ["NOVO NORDISK", "ADVICENNE", "EISAI", "MSD FRANCE"],
+        )
+        self.assertEqual(
+            [p.cip for p in produits],
+            ["3400930000001", "3400930000002", "3400930000003", "3400930000004"],
+        )
 
     def test_premiere_rangee_crue_entete_ne_filtre_pas_les_produits_du_tableau(self):
-        """Cas métier « aucune ligne perdue en silence » (tests.md) : un tableau sans
+        """Cas métier « aucune ligne perdue en silence » (TESTS.md) : un tableau sans
         en-tête réel ne se filtre pas lui-même.
 
         Effet de bord de la réparation du rappel d'en-tête, constaté le 29/07/2026 : la
@@ -389,17 +457,24 @@ class TestParsingTableaux(unittest.TestCase):
         log. Le gabarit ne retient désormais que les cellules SANS chiffre.
         """
         _, tableaux, _ = analyse.nettoyer_texte(
-            TABLE_SANS_ENTETE_PREMIERE_RANGEE_CRUE_ENTETE)
+            TABLE_SANS_ENTETE_PREMIERE_RANGEE_CRUE_ENTETE
+        )
         produits = analyse.parser_tableaux(tableaux)
         # La rangée répétant la dénomination de la première est bien revenue, avec SON CIP.
-        self.assertIn("NOMEGESTROL ACETATE VIATRIS 3,75 mg, comprimé",
-                      [p.denomination_brute for p in produits])
+        self.assertIn(
+            "NOMEGESTROL ACETATE VIATRIS 3,75 mg, comprimé",
+            [p.denomination_brute for p in produits],
+        )
         self.assertIn("3400930000033", [p.cip for p in produits])
         # Aucun gabarit n'est constitué : le tableau n'a pas de libellé d'en-tête sans
         # chiffre. Les deux rangées qui suivent la première sortent donc entières.
-        self.assertEqual([p.denomination_brute for p in produits],
-                         ["ESTRADIOL ARROW 1 mg, comprimé",
-                          "NOMEGESTROL ACETATE VIATRIS 3,75 mg, comprimé"])
+        self.assertEqual(
+            [p.denomination_brute for p in produits],
+            [
+                "ESTRADIOL ARROW 1 mg, comprimé",
+                "NOMEGESTROL ACETATE VIATRIS 3,75 mg, comprimé",
+            ],
+        )
         # NB : la 1re rangée reste consommée comme rangée d'en-tête (`entete_reconnu`) —
         # défaut ANTÉRIEUR et distinct, hors du périmètre de cette réparation, documenté
         # dans les constats. Si `_index_colonnes` cesse un jour de croire cette rangée,
@@ -412,9 +487,14 @@ class TestParsingTableaux(unittest.TestCase):
         toutes les cellules non vides », et non « deux cellules » seule."""
         _, tableaux, _ = analyse.nettoyer_texte(TABLE_RAPPEL_PARTIEL_CELLULES_VIDES)
         produits = analyse.parser_tableaux(tableaux)
-        self.assertEqual([p.denomination_brute for p in produits],
-                         ["PARTIELIN 10 mg, comprimé", "PARTIELIN 20 mg, comprimé",
-                          "PARTIELIN 40 mg, comprimé"])
+        self.assertEqual(
+            [p.denomination_brute for p in produits],
+            [
+                "PARTIELIN 10 mg, comprimé",
+                "PARTIELIN 20 mg, comprimé",
+                "PARTIELIN 40 mg, comprimé",
+            ],
+        )
 
     def test_ligne_tarifaire_et_code_ne_donnent_aucun_produit(self):
         """Tableau sans en-tête reconnu ne portant que codes et montants : rien n'en
@@ -428,8 +508,10 @@ class TestParsingTableaux(unittest.TestCase):
         cellule par cellule le 29/07/2026) : aucun ne contient l'autre, et la décision
         « cette cellule est un code, pas une dénomination » est leur union. Les unifier
         ferait entrer ou sortir des lignes produit."""
-        groupe_par_espaces = "34009 301 631 6 0"   # format réel des tableaux 28/05 et 22/07
-        autre_prefixe = "4000930000011"            # 13 chiffres, hors 34008/34009
+        groupe_par_espaces = (
+            "34009 301 631 6 0"  # format réel des tableaux 28/05 et 22/07
+        )
+        autre_prefixe = "4000930000011"  # 13 chiffres, hors 34008/34009
         self.assertFalse(analyse.MOTIF_CODE_TARIFAIRE.match(groupe_par_espaces))
         self.assertTrue(analyse._cip_normalise(groupe_par_espaces))
         self.assertTrue(analyse.MOTIF_CODE_TARIFAIRE.match(autre_prefixe))
@@ -445,7 +527,7 @@ class TestParsingTableaux(unittest.TestCase):
         _, tableaux, _ = analyse.nettoyer_texte(table)
         (delta,) = analyse.parser_tableaux(tableaux)
         self.assertEqual(delta.denomination_brute, "DELTA 2 mg")
-        self.assertEqual(delta.cip, "")   # ce préfixe n'est pas une clé de rapprochement
+        self.assertEqual(delta.cip, "")  # ce préfixe n'est pas une clé de rapprochement
 
     def test_cellule_hors_bornes_ou_colonne_absente(self):
         """Les rangées du JO sont plus courtes que leur en-tête (cellules fusionnées) :
@@ -463,18 +545,28 @@ class TestSectionsEtPresentations(unittest.TestCase):
         _, tableaux, segments = analyse.nettoyer_texte(ARRETE_SECTIONS)
         self.assertEqual(len(tableaux), 2)
         indications = [analyse.indication_de_section(s) for s in segments]
-        self.assertTrue(indications[0].startswith("- en monothérapie et en association"))
-        self.assertTrue(indications[1].startswith("celles qui figurent à l'autorisation"))
+        self.assertTrue(
+            indications[0].startswith("- en monothérapie et en association")
+        )
+        self.assertTrue(
+            indications[1].startswith("celles qui figurent à l'autorisation")
+        )
 
     def test_presentations_cip_labo_et_indication(self):
         _, tableaux, segments = analyse.nettoyer_texte(ARRETE_SECTIONS)
         produits = analyse.parser_tableaux(
-            tableaux, indications_sections=[analyse.indication_de_section(s) for s in segments])
+            tableaux,
+            indications_sections=[analyse.indication_de_section(s) for s in segments],
+        )
         self.assertEqual(len(produits), 2)
         lacosamide, methylphenidate = produits
-        self.assertEqual(lacosamide.cip, "3400930163160")   # CIP groupé par espaces normalisé
+        self.assertEqual(
+            lacosamide.cip, "3400930163160"
+        )  # CIP groupé par espaces normalisé
         self.assertEqual(lacosamide.laboratoire_brut, "STRAGEN FRANCE")
-        self.assertNotIn("laboratoires", lacosamide.denomination_brute)  # parenthèse retirée
+        self.assertNotIn(
+            "laboratoires", lacosamide.denomination_brute
+        )  # parenthèse retirée
         self.assertIn("LACOSAMIDE G.L. PHARMA 100 mg", lacosamide.denomination_brute)
         self.assertTrue(lacosamide.indication.startswith("- en monothérapie"))
         self.assertTrue(methylphenidate.indication.startswith("celles qui figurent"))
@@ -483,7 +575,9 @@ class TestSectionsEtPresentations(unittest.TestCase):
     def test_ppttc_recopie_par_presentation(self):
         _, tableaux, _ = analyse.nettoyer_texte(AVIS_PFHT)
         (oracilline,) = analyse.parser_tableaux(tableaux)
-        self.assertEqual(oracilline.ppttc, "3,87 €")   # sert à l'orientation par référentiel
+        self.assertEqual(
+            oracilline.ppttc, "3,87 €"
+        )  # sert à l'orientation par référentiel
         self.assertEqual(oracilline.cip, "3400931949152")
         self.assertEqual(oracilline.laboratoire_brut, "TEOFARMA SRL")
 
@@ -516,8 +610,10 @@ class TestSectionsEtPresentations(unittest.TestCase):
         self.assertEqual(gemzar.laboratoire_brut, "CHEPLAPHARM FRANCE")
         self.assertEqual(gemzar.laboratoire_precedent, "LILLY FRANCE SAS")
         # La dénomination et le CIP viennent du bloc de droite, sans sa parenthèse labo.
-        self.assertEqual(cefepime.denomination_brute,
-                         "CEFEPIME NORIDEM 1 g, poudre pour solution injectable (B/1)")
+        self.assertEqual(
+            cefepime.denomination_brute,
+            "CEFEPIME NORIDEM 1 g, poudre pour solution injectable (B/1)",
+        )
         self.assertEqual(cefepime.cip, "3400930154175")
         # Les deux rangées d'en-tête sont écartées : aucune ligne « Code CIP » fantôme.
         self.assertEqual(len(analyse.parser_tableaux(tableaux)), 2)
@@ -534,12 +630,14 @@ class TestSectionsEtPresentations(unittest.TestCase):
         """Largeurs de blocs qui ne recouvrent pas la rangée de sous-en-têtes : gabarit
         refusé, lecture ordinaire — jamais de découpe au hasard, qui mélangerait les deux
         états sur une même ligne de veille."""
-        table = ('<table>'
-                 '<tr><th colspan="2">Libellés abrogés</th>'
-                 '<th colspan="2">Nouveaux libellés</th></tr>'
-                 '<tr><th>Code CIP</th><th>Libellé</th></tr>'
-                 '<tr><td>34009 301 541 7 5</td><td>CEFEPIME NORIDEM 1 g '
-                 '(laboratoires AGUETTANT)</td></tr></table>')
+        table = (
+            "<table>"
+            '<tr><th colspan="2">Libellés abrogés</th>'
+            '<th colspan="2">Nouveaux libellés</th></tr>'
+            "<tr><th>Code CIP</th><th>Libellé</th></tr>"
+            "<tr><td>34009 301 541 7 5</td><td>CEFEPIME NORIDEM 1 g "
+            "(laboratoires AGUETTANT)</td></tr></table>"
+        )
         _, tableaux, _ = analyse.nettoyer_texte(table)
         self.assertEqual(analyse._decalage_bloc_abroge(tableaux[0].find_all("tr")), 0)
 
@@ -555,8 +653,10 @@ class TestSectionsEtPresentations(unittest.TestCase):
     def test_taux_global_quand_le_tableau_n_en_porte_pas(self):
         """Décision UNCAM qui énonce son taux une seule fois, dans sa phrase d'attaque :
         le repli le rattache à chaque présentation. Sans repli, taux « N/A »."""
-        table = ("<table><tr><th>Code CIP</th><th>Présentation</th></tr>"
-                 "<tr><td>34009 303 332 1 1</td><td>ATIMIAC 20 mg, collyre</td></tr></table>")
+        table = (
+            "<table><tr><th>Code CIP</th><th>Présentation</th></tr>"
+            "<tr><td>34009 303 332 1 1</td><td>ATIMIAC 20 mg, collyre</td></tr></table>"
+        )
         _, tableaux, _ = analyse.nettoyer_texte(table)
         (sans_repli,) = analyse.parser_tableaux(tableaux)
         self.assertEqual(sans_repli.taux, "N/A")
@@ -566,18 +666,28 @@ class TestSectionsEtPresentations(unittest.TestCase):
     def test_taux_unique_du_texte(self):
         """Un seul pourcentage énoncé → il fait foi ; plusieurs → « N/A » (jamais de
         choix arbitraire : piège « taux 1 » de VGENFLI)."""
-        self.assertEqual(analyse.taux_unique_du_texte(
-            "le taux de participation est fixé à 65 % pour les spécialités visées"), "0.65")
-        self.assertEqual(analyse.taux_unique_du_texte(
-            "les taux sont fixés à 35 % et 65 % selon les présentations"), "N/A")
+        self.assertEqual(
+            analyse.taux_unique_du_texte(
+                "le taux de participation est fixé à 65 % pour les spécialités visées"
+            ),
+            "0.65",
+        )
+        self.assertEqual(
+            analyse.taux_unique_du_texte(
+                "les taux sont fixés à 35 % et 65 % selon les présentations"
+            ),
+            "N/A",
+        )
         self.assertEqual(analyse.taux_unique_du_texte("aucun pourcentage ici"), "N/A")
 
     def test_code_ucd_extrait_comme_cle(self):
         """Les textes de la liste en sus (arrêtés et avis) publient des codes UCD
         (34008…) : même rôle de clé de rapprochement que le CIP (constat 04/06/2026)."""
-        table = ("<table><tr><th>Code UCD</th><th>Libellé</th></tr>"
-                 "<tr><td>34008 935 382 3 4</td><td>MEROPENEM PAN 1G INJ FL "
-                 "(laboratoires PANPHARMA)</td></tr></table>")
+        table = (
+            "<table><tr><th>Code UCD</th><th>Libellé</th></tr>"
+            "<tr><td>34008 935 382 3 4</td><td>MEROPENEM PAN 1G INJ FL "
+            "(laboratoires PANPHARMA)</td></tr></table>"
+        )
         _, tableaux, _ = analyse.nettoyer_texte(table)
         (meropenem,) = analyse.parser_tableaux(tableaux)
         self.assertEqual(meropenem.cip, "3400893538234")
@@ -587,27 +697,39 @@ class TestSectionsEtPresentations(unittest.TestCase):
         """Demande utilisatrice du 22/07/2026 : une section longue (indication structurée
         + conditions de prise en charge) est recopiée en entier, jamais remplacée par
         « à compléter manuellement » (constaté sur WEGOVY/MOUNJARO au 28/05)."""
-        segment = ("Les seules indications thérapeutiques ouvrant droit à la prise en charge "
-                   "sont, pour les spécialités visées ci-dessous : " + "x" * 2000)
+        segment = (
+            "Les seules indications thérapeutiques ouvrant droit à la prise en charge "
+            "sont, pour les spécialités visées ci-dessous : " + "x" * 2000
+        )
         self.assertEqual(analyse.indication_de_section(segment), "x" * 2000)
 
     def test_segment_sans_motif_indication(self):
-        self.assertEqual(analyse.indication_de_section("Arrête : les prix sont fixés."), "")
+        self.assertEqual(
+            analyse.indication_de_section("Arrête : les prix sont fixés."), ""
+        )
 
 
 class TestAnalyseComplete(unittest.TestCase):
     def test_analyser_texte_deterministe(self):
-        brut = ("Vu le code de la sécurité sociale ;\n"
-                "Article 1er : sont inscrites les spécialités suivantes." + TABLE_INSCRIPTION)
-        titre = ("Arrêté du 27 mai 2026 modifiant la liste des spécialités pharmaceutiques "
-                 "remboursables aux assurés sociaux")
-        resultat = analyse.analyser_texte_deterministe("JORFTEXT000054144800", titre, brut)
+        brut = (
+            "Vu le code de la sécurité sociale ;\n"
+            "Article 1er : sont inscrites les spécialités suivantes."
+            + TABLE_INSCRIPTION
+        )
+        titre = (
+            "Arrêté du 27 mai 2026 modifiant la liste des spécialités pharmaceutiques "
+            "remboursables aux assurés sociaux"
+        )
+        resultat = analyse.analyser_texte_deterministe(
+            "JORFTEXT000054144800", titre, brut
+        )
         self.assertEqual(resultat.type_texte, "arrete_inscription")
         self.assertEqual(resultat.listes, ["SS"])
         self.assertFalse(resultat.ambigu)
         self.assertEqual(len(resultat.produits), 2)
-        self.assertEqual(resultat.url,
-                         "https://www.legifrance.gouv.fr/jorf/id/JORFTEXT000054144800")
+        self.assertEqual(
+            resultat.url, "https://www.legifrance.gouv.fr/jorf/id/JORFTEXT000054144800"
+        )
         self.assertNotIn("Vu le code", resultat.texte_nettoye)
 
 

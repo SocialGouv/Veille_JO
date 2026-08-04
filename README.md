@@ -85,4 +85,6 @@ la ligne sort en « Hausse de prix (à vérifier) », à reclasser à la relectu
 - [TUTORIEL.md](TUTORIEL.md) — le quotidien pas à pas, et que faire quand ça coince ;
 - [INSTALL.md](INSTALL.md) — installation, clé d'accès, tâche planifiée, dépannage
   (pour le référent technique) ;
+- [TESTS.md](TESTS.md) — comportements métier à vérifier et comment lancer les tests
+  hors ligne (pour développeur) ;
 - `presentation_veille_JO.pptx` — le fonctionnement et les garde-fous, en 5 diapositives.
