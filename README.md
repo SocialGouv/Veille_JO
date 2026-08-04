@@ -19,6 +19,24 @@ Une fenêtre noire travaille une à deux minutes, puis affiche :
 - `[ECHEC]` → le plus souvent, le JO n'est pas encore publié : réessayez dans l'heure.
   Si ça persiste, transmettez le fichier le plus récent du dossier `logs/` au référent.
 
+## Lancer la veille (Mac, poste de développement)
+
+Premier lancement seulement :
+```bash
+python3 -m venv .venv
+.venv/bin/pip install -r requirements.txt
+cp .env.example .env   # puis remplir PISTE_CLIENT_ID / PISTE_CLIENT_SECRET (voir INSTALL.md)
+```
+
+Ensuite, chaque matin :
+```bash
+./lancer_veille.sh
+```
+Pas d'Outlook sur Mac : le brouillon pré-rempli n'est pas disponible, l'outil bascule
+automatiquement sur le fichier `sorties/corps_mail_<date>.html`, ouvert dans le
+navigateur par défaut — copiez-collez son contenu dans un nouveau mail. L'Excel du
+jour est dans `sorties/veille_jo_<date>.xlsx`, le journal dans `logs/`.
+
 ## Traiter un autre jour que celui du lancement
 
 Ouvrez **`date.txt`** (à côté de `lancer_veille.bat`), écrivez la date voulue au format
