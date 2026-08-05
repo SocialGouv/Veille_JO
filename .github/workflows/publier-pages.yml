@@ -8,7 +8,12 @@ name: Veille JO quotidienne + publication GitHub Pages
 on:
   schedule:
     - cron: '0 5 * * *'
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      date:
+        description: "Date du JO à traiter (AAAA-MM-JJ). Laisser vide pour aujourd'hui."
+        required: false
+        type: string
 
 # Requis pour pousser la page générée sur la branche gh-pages.
 permissions:
@@ -41,7 +46,7 @@ jobs:
         env:
           PISTE_CLIENT_ID: ${{ secrets.PISTE_CLIENT_ID }}
           PISTE_CLIENT_SECRET: ${{ secrets.PISTE_CLIENT_SECRET }}
-        run: python main.py
+        run: python main.py ${{ inputs.date && format('--date {0}', inputs.date) || '' }}
 
       - name: Préparer le dossier de publication (branche gh-pages)
         run: |
