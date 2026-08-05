@@ -35,7 +35,7 @@ URL_PUBLIQUE_TEXTE = "https://www.legifrance.gouv.fr/jorf/id/{id}"
 # arrêté d'indemnités de personnels enseignants dont les tableaux (tranches
 # kilométriques) sortaient en fausses lignes de hausse. Redondant : les avis de
 # majoration pharma contiennent toujours « spécialités pharmaceutiques ».
-MOTS_CLES = ["pharmaceutique", "spécialité", "médicament", "prix de spécialité",
+MOTS_CLES = ["pharmaceutique", "médicament", "prix de spécialité",
              "avis de tarification", "baisse de prix", "participation de l'assuré"]
 
 # --- Classification des textes par titre (E3, regex insensibles à la casse) ---
@@ -58,6 +58,14 @@ MOTS_CLES = ["pharmaceutique", "spécialité", "médicament", "prix de spéciali
 # « spécialité » attrape aussi des textes de biologie médicale (ex. nomenclature
 # « PARASITOLOGIE ET MYCOLOGIE ») → 59 anomalies de bruit ce jour-là. À recalibrer sur
 # plusieurs dates avant la mise en service.
+# Recalibrage du 05/08/2026 : le mot-clé nu « spécialité » a aussi attrapé un arrêté
+# fixant le nombre d'internes en médecine « par spécialité et par subdivision
+# territoriale » (JORFTEXT000054618874, JO du 05/08/2026) — son tableau (villes/CHU en
+# lignes, spécialités médicales en colonnes) n'a aucune colonne dénomination/laboratoire/
+# CIP/taux reconnue, donc chaque ville et chaque spécialité est ressortie comme une
+# anomalie « à vérifier manuellement » distincte (34 lignes de bruit). Retiré : toutes
+# les vraies pièces pharma retenues à ce jour (fixtures + run du 28/05/2026) contiennent
+# déjà « pharmaceutique », rendant « spécialité » nu redondant pour les vrais cas.
 MOTIFS_CLASSIFICATION = [
     # (type_texte, regex sur le titre) — évalués dans l'ordre, premier qui matche.
     # « radiation » avant les inscriptions : un titre de radiation cite aussi la liste.

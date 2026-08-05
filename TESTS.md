@@ -37,6 +37,16 @@ Les cas marqués ⚠ sont des **défauts connus et non corrigés** : ils n'ont p
 
 - [ ] 🤖 Un texte au titre pharmaceutique est retenu, un texte hors sujet est écarté
   (nominations, péages, tabac… et l'arrêté d'indemnités enseignants du 07/07).
+- [ ] 🤖 **Mot-clé « spécialité » nu retiré (05/08/2026)** : il attrapait aussi l'arrêté
+  fixant le nombre d'internes en médecine « par spécialité et par subdivision
+  territoriale » (JORFTEXT000054618874). Son tableau (villes/CHU en lignes, spécialités
+  médicales en colonnes, ligne TOTAL) n'a aucune colonne pharma reconnue : chaque ville
+  et chaque spécialité ressortait comme une anomalie « à vérifier manuellement »
+  distincte — 34 lignes de bruit dans le mail « RAS » du jour, seule chose visible sur
+  la page GitHub Pages ce jour-là. Toutes les vraies pièces pharma (fixtures + run du
+  28/05/2026) contiennent déjà « pharmaceutique » : le mot-clé nu était redondant.
+  Recalibrage annoncé mais jamais fait depuis le constat du 31/05/2026 (nomenclature
+  « PARASITOLOGIE ET MYCOLOGIE », 59 anomalies de bruit ce jour-là).
 - [ ] 🤖 Chaque famille de titre reçoit le bon type : inscription (SS, Collectivité,
   LES MCO, LES SMR, Rétrocession), radiation, avis de prix, majoration, baisse,
   décision de taux UNCAM, extension d'indication.

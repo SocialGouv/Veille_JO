@@ -45,6 +45,12 @@ TITRES_HORS_SUJET = [
                              "d'administration de l'Agence nationale"),
     ("JORFTEXT000054144901", "Décret n° 2026-612 relatif aux tarifs de péage autoroutiers"),
     ("JORFTEXT000054144902", "Arrêté du 27 mai 2026 relatif aux prix de vente du tabac"),
+    # Incident réel du 05/08/2026 : « spécialité » nu (retiré de MOTS_CLES) attrapait cet
+    # arrêté de répartition d'internes en médecine, sans rapport avec le pharma.
+    ("JORFTEXT000054618874", "Arrêté du 4 août 2026 fixant le nombre d'étudiants de "
+                             "troisième cycle des études de médecine susceptibles d'être "
+                             "affectés, par spécialité et par subdivision territoriale au "
+                             "titre de l'année universitaire 2026-2027"),
 ]
 
 
