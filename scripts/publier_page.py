@@ -27,6 +27,8 @@ from pathlib import Path
 
 RACINE = Path(__file__).resolve().parent.parent
 MOTIF_DATE = re.compile(r"_(\d{4}-\d{2}-\d{2})\.html$")
+MOTIF_BODY_OUVRANT = re.compile(r"(<body[^>]*>)", re.IGNORECASE)
+LIEN_RETOUR = '<p><a href="../index.html">← Retour à la page d\'accueil</a></p>\n'
 
 
 def fichier_du_jour(dossier_sorties: Path) -> Path:
@@ -50,11 +52,21 @@ def date_depuis_nom(chemin: Path) -> str:
     return correspondance.group(1)
 
 
+def _avec_lien_retour(document_html: str) -> str:
+    """Insère un lien « Retour à la page d'accueil » juste après l'ouverture de `<body>`,
+    pour permettre de revenir sur `index.html` sans passer par le bouton retour du
+    navigateur — ces pages archivées sont aussi accédées directement (lien partagé,
+    favori), pas seulement en cliquant depuis l'index."""
+    return MOTIF_BODY_OUVRANT.sub(lambda m: m.group(1) + "\n" + LIEN_RETOUR,
+                                  document_html, count=1)
+
+
 def copier_dans_archive(fichier_html: Path, dossier_sorties: Path, date_iso: str,
                         dossier_gh_pages: Path) -> None:
     archive = dossier_gh_pages / "archive"
     archive.mkdir(parents=True, exist_ok=True)
-    shutil.copyfile(fichier_html, archive / f"{date_iso}.html")
+    contenu = _avec_lien_retour(fichier_html.read_text(encoding="utf-8"))
+    (archive / f"{date_iso}.html").write_text(contenu, encoding="utf-8")
 
     fichier_excel = dossier_sorties / f"veille_jo_{date_iso}.xlsx"
     if fichier_excel.is_file():
@@ -66,7 +78,9 @@ def _corps_depuis_document(document_html: str) -> str:
     l'inliner dans `index.html` sans dupliquer l'enveloppe `<html>`/`<head>`."""
     correspondance = re.search(r"<body[^>]*>(.*)</body>", document_html,
                                re.DOTALL | re.IGNORECASE)
-    return correspondance.group(1) if correspondance else document_html
+    corps = correspondance.group(1) if correspondance else document_html
+    # Le lien de retour n'a pas lieu d'être une fois inliné dans index.html lui-même.
+    return corps.replace("\n" + LIEN_RETOUR, "").replace(LIEN_RETOUR, "")
 
 
 def _date_affichee(date_iso: str) -> str:
