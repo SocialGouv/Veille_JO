@@ -15,7 +15,11 @@ formats doit se répercuter ici.
 `gh-pages-checkout/`, réglable en argument) :
   - `archive/<date>.html` et `archive/<date>.xlsx` (si présent) — copie du jour ;
   - `index.html` — régénéré en listant tout `archive/*.html` (ancien + nouveau), le plus
-    récent en tête, avec le digest du jour inliné sous la liste.
+    récent en tête, avec le digest du jour inliné sous la liste. La liste est affichée
+    dans un conteneur défilant et peut être filtrée par une saisie de date approximative
+    (distance de Damerau-Levenshtein, meilleures correspondances en tête, 10 résultats
+    maximum affichés) — cf. `SCRIPT_FILTRE_ARCHIVES` ci-dessous ; ce filtrage est une
+    amélioration cliente (JavaScript) : sans JavaScript, la liste complète reste visible.
 """
 
 import argparse
@@ -87,6 +91,75 @@ def _date_affichee(date_iso: str) -> str:
     return datetime.strptime(date_iso, "%Y-%m-%d").strftime("%d/%m/%Y")
 
 
+STYLE_ARCHIVES = (
+    ".archives-conteneur{max-height:320px;overflow-y:auto;border:1px solid #cccccc;"
+    "padding:0.5em 1em;margin-bottom:1em}\n"
+    "#filtre-archives{width:16em;padding:0.3em;margin-bottom:0.5em}"
+)
+
+# Filtrage côté client de la liste des archives : distance de Damerau-Levenshtein
+# (transpositions comprises) de la saisie contre CHAQUE sous-chaîne de la date affichée
+# (« n'importe où dans la chaîne », pas seulement en préfixe — ex. taper "18/" doit faire
+# remonter le 18 de tous les mois). Pas de seuil de distance : tri par distance croissante
+# puis par date décroissante, et seuls les 10 premiers résultats restent affichés — une
+# saisie qui ne correspond bien à rien affiche simplement les 10 « moins mauvaises »
+# correspondances plutôt qu'une liste vide. Amélioration cliente uniquement : le <ul> est
+# déjà rendu côté serveur avec la liste complète, donc l'absence de JavaScript laisse la
+# liste complète visible (non filtrée, non triée dynamiquement).
+SCRIPT_FILTRE_ARCHIVES = """
+(function () {
+  function damerauLevenshtein(a, b) {
+    var al = a.length, bl = b.length;
+    var d = [];
+    for (var i = 0; i <= al; i++) { d[i] = [i]; }
+    for (var j = 0; j <= bl; j++) { d[0][j] = j; }
+    for (var i = 1; i <= al; i++) {
+      for (var j = 1; j <= bl; j++) {
+        var cout = a[i - 1] === b[j - 1] ? 0 : 1;
+        var valeur = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + cout);
+        if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) {
+          valeur = Math.min(valeur, d[i - 2][j - 2] + 1);
+        }
+        d[i][j] = valeur;
+      }
+    }
+    return d[al][bl];
+  }
+
+  function distanceMeilleureSousChaine(saisie, cible) {
+    var meilleure = Infinity;
+    for (var i = 0; i <= cible.length; i++) {
+      for (var j = i; j <= cible.length; j++) {
+        var distance = damerauLevenshtein(saisie, cible.slice(i, j));
+        if (distance < meilleure) { meilleure = distance; }
+      }
+    }
+    return meilleure;
+  }
+
+  var conteneur = document.getElementById("archives");
+  var champ = document.getElementById("filtre-archives");
+  if (!conteneur || !champ) { return; }
+  var lignes = Array.prototype.slice.call(conteneur.querySelectorAll("li"));
+
+  champ.addEventListener("input", function () {
+    var saisie = champ.value.trim();
+    var notees = lignes.map(function (li) {
+      return { li: li, distance: distanceMeilleureSousChaine(saisie, li.dataset.affichee) };
+    });
+    notees.sort(function (a, b) {
+      if (a.distance !== b.distance) { return a.distance - b.distance; }
+      return a.li.dataset.date < b.li.dataset.date ? 1 : -1;
+    });
+    notees.forEach(function (item, index) {
+      item.li.style.display = index < 10 ? "" : "none";
+      conteneur.appendChild(item.li);
+    });
+  });
+})();
+"""
+
+
 def regenerer_index(dossier_gh_pages: Path) -> None:
     """Régénère `index.html` à partir de TOUT `archive/*.html` présent (ancien + nouveau) —
     la publication mise en avant est la plus RÉCENTE de l'archive, pas forcément celle du
@@ -96,10 +169,11 @@ def regenerer_index(dossier_gh_pages: Path) -> None:
 
     liens = []
     for date_iso in dates:
-        lien = f'<a href="archive/{date_iso}.html">{_date_affichee(date_iso)}</a>'
+        date_affichee = _date_affichee(date_iso)
+        lien = f'<a href="archive/{date_iso}.html">{date_affichee}</a>'
         if (archive / f"{date_iso}.xlsx").is_file():
             lien += f' (<a href="archive/{date_iso}.xlsx">Excel</a>)'
-        liens.append(f"<li>{lien}</li>")
+        liens.append(f'<li data-date="{date_iso}" data-affichee="{date_affichee}">{lien}</li>')
 
     date_plus_recente = dates[0]
     corps_du_jour = _corps_depuis_document(
@@ -107,14 +181,21 @@ def regenerer_index(dossier_gh_pages: Path) -> None:
 
     index = ("<!DOCTYPE html>\n<html lang=\"fr\">\n<head>\n<meta charset=\"utf-8\">\n"
              "<meta name=\"color-scheme\" content=\"light only\">\n"
-             "<title>Veille JO — spécialités pharmaceutiques (CEPS)</title>\n</head>\n"
+             "<title>Veille JO — spécialités pharmaceutiques (CEPS)</title>\n"
+             f"<style>\n{STYLE_ARCHIVES}\n</style>\n</head>\n"
              "<body style=\"background:#ffffff;color:#000000;"
              "font-family:Aptos,Arial,sans-serif\">\n"
              "<h1>Veille JO — spécialités pharmaceutiques (CEPS)</h1>\n"
              f"<p>Dernière publication : <strong>{_date_affichee(date_plus_recente)}</strong></p>\n"
-             "<h2>Archives</h2>\n<ul>\n" + "\n".join(liens) + "\n</ul>\n"
+             "<h2>Archives</h2>\n"
+             '<input type="text" id="filtre-archives" autocomplete="off"\n'
+             '       placeholder="Filtrer par date (JJ/MM/AAAA), ex. « 18/ »">\n'
+             '<div class="archives-conteneur">\n<ul id="archives">\n'
+             + "\n".join(liens) + "\n</ul>\n</div>\n"
              "<hr>\n<h2>Publication du jour</h2>\n"
-             f"{corps_du_jour}\n</body>\n</html>\n")
+             f"{corps_du_jour}\n"
+             f"<script>{SCRIPT_FILTRE_ARCHIVES}</script>\n"
+             "</body>\n</html>\n")
     (dossier_gh_pages / "index.html").write_text(index, encoding="utf-8")
 
 
