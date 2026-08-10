@@ -15,7 +15,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from main import date_depuis_fichier, vider_fichier_date
+from main import date_depuis_fichier, resoudre_date_argument, vider_fichier_date
 
 
 class TestDateDepuisFichier(unittest.TestCase):
@@ -71,6 +71,35 @@ class TestDateDepuisFichier(unittest.TestCase):
         vider_fichier_date(self.dossier)
         self.assertTrue((self.dossier / "date.txt").exists())
         self.assertEqual((self.dossier / "date.txt").read_text(encoding="utf-8"), "")
+
+
+class TestResoudreDateArgument(unittest.TestCase):
+    """`--date` accepte plusieurs formats non ambigus (incident du 10/08/2026 : un
+    déclenchement manuel du workflow avec « 10/08/2026 » a fait échouer main.py)."""
+
+    def test_absent(self):
+        self.assertIsNone(resoudre_date_argument(None))
+        self.assertIsNone(resoudre_date_argument(""))
+
+    def test_format_canonique_aaaa_mm_jj(self):
+        self.assertEqual(resoudre_date_argument("2026-08-10"), date(2026, 8, 10))
+
+    def test_format_jj_tiret_mm_tiret_aaaa(self):
+        self.assertEqual(resoudre_date_argument("10-08-2026"), date(2026, 8, 10))
+
+    def test_format_jj_slash_mm_slash_aaaa(self):
+        self.assertEqual(resoudre_date_argument("10/08/2026"), date(2026, 8, 10))
+
+    def test_format_aaaa_slash_mm_slash_jj(self):
+        self.assertEqual(resoudre_date_argument("2026/08/10"), date(2026, 8, 10))
+
+    def test_format_invalide_leve_value_error(self):
+        with self.assertRaises(ValueError):
+            resoudre_date_argument("demain")
+
+    def test_date_inexistante_leve_value_error(self):
+        with self.assertRaises(ValueError):
+            resoudre_date_argument("32-13-2026")
 
 
 if __name__ == "__main__":

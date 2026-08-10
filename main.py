@@ -42,23 +42,65 @@ def configurer_journalisation() -> Path:
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s %(levelname)-7s %(name)s — %(message)s",
-        handlers=[logging.FileHandler(fichier, encoding="utf-8"), logging.StreamHandler()],
+        handlers=[
+            logging.FileHandler(fichier, encoding="utf-8"),
+            logging.StreamHandler(),
+        ],
     )
     return fichier
 
 
-def analyser_arguments(argv=None) -> date | None:
-    """Lit `--date AAAA-MM-JJ` (option développeur/recette). None si absente."""
-    analyseur = argparse.ArgumentParser(description="Veille JO — spécialités pharmaceutiques (CEPS)")
-    analyseur.add_argument("--date", help="date du JO à traiter, format AAAA-MM-JJ "
-                                          "(défaut : fichier « date.txt », sinon aujourd'hui)")
-    arguments = analyseur.parse_args(argv)
-    if arguments.date:
+def analyser_arguments(argv=None) -> str | None:
+    """Lit `--date` (option développeur/recette), texte brut non validé.
+
+    La validation du format est faite par `resoudre_date_argument`, appelée depuis
+    `principal` à l'intérieur du bloc try/except : un format invalide doit déclencher
+    une alerte comme tout autre échec (§ invariants CLAUDE.md — `main.py` écrit
+    toujours un fichier de sortie), pas un `argparse.error()` qui quitterait le
+    programme avant même d'écrire quoi que ce soit dans `sorties/`."""
+    analyseur = argparse.ArgumentParser(
+        description="Veille JO — spécialités pharmaceutiques (CEPS)"
+    )
+    analyseur.add_argument(
+        "--date",
+        help="date du JO à traiter — AAAA-MM-JJ de préférence, "
+        "mais JJ-MM-AAAA/JJ/MM/AAAA/AAAA/MM/JJ acceptés aussi "
+        "(défaut : fichier « date.txt », sinon aujourd'hui)",
+    )
+    return analyseur.parse_args(argv).date
+
+
+# Formats acceptés pour --date, testés dans cet ordre (le premier qui correspond
+# l'emporte) : le canonique AAAA-MM-JJ d'abord, puis les variantes JJ-MM-AAAA que la
+# saisie manuelle (ex. déclenchement du workflow GitHub Actions) confond facilement avec
+# le format de `date.txt` — cf. incident du 10/08/2026 où « 10/08/2026 » (JJ/MM/AAAA) a
+# fait échouer `main.py` avant même l'écriture d'une alerte. Pas d'ambiguïté JJ/MM contre
+# MM/JJ à lever : l'outil est francophone, JJ est toujours en premier dans ces variantes.
+FORMATS_DATE_ARGUMENT = ("%Y-%m-%d", "%d-%m-%Y", "%d/%m/%Y", "%Y/%m/%d")
+
+
+def resoudre_date_argument(valeur: str | None) -> date | None:
+    """Convertit le `--date` brut en `date` en essayant `FORMATS_DATE_ARGUMENT` dans
+    l'ordre, ou lève `ValueError` (message utilisateur prêt pour l'alerte) si aucun ne
+    correspond. None si absent."""
+    if not valeur:
+        return None
+    for format_essaye in FORMATS_DATE_ARGUMENT:
         try:
-            return datetime.strptime(arguments.date, "%Y-%m-%d").date()
+            resultat = datetime.strptime(valeur, format_essaye).date()
         except ValueError:
-            analyseur.error(f"date invalide « {arguments.date} » (format attendu : AAAA-MM-JJ)")
-    return None
+            continue
+        if format_essaye != "%Y-%m-%d":
+            JOURNAL.info(
+                "--date « %s » reconnue au format %s (format canonique : AAAA-MM-JJ).",
+                valeur,
+                format_essaye,
+            )
+        return resultat
+    raise ValueError(
+        f"date invalide « {valeur} » (format attendu : AAAA-MM-JJ, "
+        "JJ-MM-AAAA, JJ/MM/AAAA ou AAAA/MM/JJ)"
+    )
 
 
 # Interface non technique du choix de date (demande utilisatrice du 22/07/2026) : un
@@ -90,16 +132,22 @@ def date_depuis_fichier(dossier: Path | None = None) -> date | None:
         contenu = chemin.read_text(encoding="latin-1")
     contenu = contenu.strip()
     if not contenu:
-        return None   # vide = pas de demande (nominal depuis le 22/07)
+        return None  # vide = pas de demande (nominal depuis le 22/07)
     try:
         demandee = datetime.strptime(contenu, "%d-%m-%Y").date()
     except ValueError:
-        JOURNAL.warning("Fichier %s : « %s » n'est pas une date JJ-MM-AAAA valide "
-                        "(ex. 22-07-2026) : la veille passe sur la date du jour.",
-                        FICHIER_DATE, contenu)
+        JOURNAL.warning(
+            "Fichier %s : « %s » n'est pas une date JJ-MM-AAAA valide "
+            "(ex. 22-07-2026) : la veille passe sur la date du jour.",
+            FICHIER_DATE,
+            contenu,
+        )
         return None
-    JOURNAL.info("Date demandée via le fichier %s : %s.", FICHIER_DATE,
-                 demandee.strftime("%d/%m/%Y"))
+    JOURNAL.info(
+        "Date demandée via le fichier %s : %s.",
+        FICHIER_DATE,
+        demandee.strftime("%d/%m/%Y"),
+    )
     return demandee
 
 
@@ -113,15 +161,26 @@ def vider_fichier_date(dossier: Path | None = None) -> None:
     try:
         if not chemin.is_file():
             chemin.write_text("", encoding="utf-8")
-            JOURNAL.info("Fichier date.txt créé (vide) : y écrire JJ-MM-AAAA pour "
-                         "traiter un autre jour.")
+            JOURNAL.info(
+                "Fichier date.txt créé (vide) : y écrire JJ-MM-AAAA pour "
+                "traiter un autre jour."
+            )
         elif chemin.stat().st_size > 0:
             chemin.write_text("", encoding="utf-8")
-            JOURNAL.info("Fichier %s vidé (nettoyage de fin de lancement) : il reste "
-                         "en place pour une prochaine date.", FICHIER_DATE)
-    except OSError as erreur:   # fichier verrouillé sous Windows : signalé, jamais bloquant
-        JOURNAL.warning("Fichier %s non vidé (%s) : effacer son contenu à la main pour "
-                        "éviter de rejouer cette date demain.", FICHIER_DATE, erreur)
+            JOURNAL.info(
+                "Fichier %s vidé (nettoyage de fin de lancement) : il reste "
+                "en place pour une prochaine date.",
+                FICHIER_DATE,
+            )
+    except (
+        OSError
+    ) as erreur:  # fichier verrouillé sous Windows : signalé, jamais bloquant
+        JOURNAL.warning(
+            "Fichier %s non vidé (%s) : effacer son contenu à la main pour "
+            "éviter de rejouer cette date demain.",
+            FICHIER_DATE,
+            erreur,
+        )
 
 
 def executer(date_cible: date) -> int:
@@ -129,7 +188,9 @@ def executer(date_cible: date) -> int:
     JOURNAL.info("Veille JO du %s — démarrage.", date_cible.strftime("%d/%m/%Y"))
 
     # 1. Extraction : sommaire du JO de la date.
-    client = ClientPiste(os.getenv("PISTE_CLIENT_ID", ""), os.getenv("PISTE_CLIENT_SECRET", ""))
+    client = ClientPiste(
+        os.getenv("PISTE_CLIENT_ID", ""), os.getenv("PISTE_CLIENT_SECRET", "")
+    )
     _jo, textes_sommaire = client.sommaire_jo(date_cible)
 
     # 2. Filtrage par mots-clés sur les titres.
@@ -139,7 +200,10 @@ def executer(date_cible: date) -> int:
         # Jour sans texte pertinent : le mail « RAS » part quand même (§5.2.5 — l'absence
         # de mail signifie « panne », jamais « rien à signaler »). Pas d'Excel à joindre.
         JOURNAL.info("Aucun texte pharmaceutique ce jour : notification « RAS ».")
-        notifier(ResultatVeille(date_jo=date_cible, lignes=[], anomalies=[]), chemin_excel=None)
+        notifier(
+            ResultatVeille(date_jo=date_cible, lignes=[], anomalies=[]),
+            chemin_excel=None,
+        )
         return 0
 
     # 3. Analyse déterministe — les textes intégraux sont récupérés ici.
@@ -150,13 +214,17 @@ def executer(date_cible: date) -> int:
             brut = client.texte_integral(identifiant)
         except ErreurPiste as erreur:
             JOURNAL.error("Texte %s non récupéré : %s", identifiant, erreur)
-            anomalies_extraction.append(f"Texte non analysé (échec de téléchargement) : "
-                                        f"{titre} — {url_publique(identifiant)}")
+            anomalies_extraction.append(
+                f"Texte non analysé (échec de téléchargement) : "
+                f"{titre} — {url_publique(identifiant)}"
+            )
             continue
         if not brut.strip():
             JOURNAL.warning("Texte %s vide côté API.", identifiant)
-            anomalies_extraction.append(f"Texte au contenu vide côté API, à lire en ligne : "
-                                        f"{titre} — {url_publique(identifiant)}")
+            anomalies_extraction.append(
+                f"Texte au contenu vide côté API, à lire en ligne : "
+                f"{titre} — {url_publique(identifiant)}"
+            )
             continue
         analyses.append(analyser_texte_deterministe(identifiant, titre, brut))
 
@@ -172,8 +240,11 @@ def executer(date_cible: date) -> int:
         # constructeur (AttributeError, TypeError) doit remonter, pas se déguiser en
         # panne réseau.
         except (OSError, ValueError, requests.RequestException) as erreur:
-            JOURNAL.warning("Référentiel de prix indisponible (%s) : avis de prix "
-                            "neutres laissés « à vérifier ».", erreur)
+            JOURNAL.warning(
+                "Référentiel de prix indisponible (%s) : avis de prix "
+                "neutres laissés « à vérifier ».",
+                erreur,
+            )
     resultat = consolider(analyses, date_cible, referentiel=referentiel)
     if referentiel is not None:
         try:
@@ -188,9 +259,13 @@ def executer(date_cible: date) -> int:
     # 5b. Notification (échec mail ≠ échec du run : sorties/ contient tout).
     notifier(resultat, chemin_excel)
 
-    JOURNAL.info("Veille du %s terminée : %d ligne(s), %d anomalie(s), Excel : %s.",
-                 date_cible.strftime("%d/%m/%Y"), len(resultat.lignes),
-                 len(resultat.anomalies), chemin_excel or "aucun (RAS)")
+    JOURNAL.info(
+        "Veille du %s terminée : %d ligne(s), %d anomalie(s), Excel : %s.",
+        date_cible.strftime("%d/%m/%Y"),
+        len(resultat.lignes),
+        len(resultat.anomalies),
+        chemin_excel or "aucun (RAS)",
+    )
     return 0
 
 
@@ -203,18 +278,28 @@ def principal(argv=None) -> int:
     le fichier lui-même reste en place.
     """
     load_dotenv(Path(__file__).parent / ".env")
-    date_arg = analyser_arguments(argv)
+    date_arg_brute = analyser_arguments(argv)
     fichier_log = configurer_journalisation()
     JOURNAL.info("Journal de cette exécution : %s", fichier_log)
     date_cible = date.today()
     try:
+        date_arg = resoudre_date_argument(date_arg_brute)
         date_fichier = date_depuis_fichier()
         date_cible = date_arg or date_fichier or date.today()
         if date_arg and date_fichier:
-            JOURNAL.info("--date fourni : il prime sur le fichier date (qui sera vidé).")
+            JOURNAL.info(
+                "--date fourni : il prime sur le fichier date (qui sera vidé)."
+            )
         return executer(date_cible)
     except ErreurPiste as erreur:
         JOURNAL.error("Échec PISTE : %s", erreur)
+        alerter(str(erreur), date_cible)
+        return 1
+    except ValueError as erreur:
+        # --date au mauvais format (ex. JJ/MM/AAAA au lieu d'AAAA-MM-JJ) : alerte datée
+        # d'aujourd'hui plutôt qu'un `argparse.error()` qui quitterait le programme sans
+        # rien écrire dans `sorties/` (voir `resoudre_date_argument`).
+        JOURNAL.error("Argument --date invalide : %s", erreur)
         alerter(str(erreur), date_cible)
         return 1
     # Filet de dernier recours volontairement large : il garantit l'alerte et le code
