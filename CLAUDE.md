@@ -102,10 +102,16 @@ manuellement" rather than inferred):
    is always written regardless of mode, as a permanent fallback trace.
 
 `main.executer(date_cible)` runs steps 1–7 end to end and always returns 0 (success,
-including a no-relevant-texts "RAS" day) or 1 (failure — PISTE unreachable or an
-unexpected exception), which the Windows scheduled task uses to decide whether to
-retry. **No mail ever means a failure** — a day with nothing to report still sends a
-"RAS" mail; this invariant is deliberate and shows up throughout the tests.
+including a no-relevant-texts "RAS" day); failures are raised as exceptions and turned
+into an exit code by `main.principal`: 2 if the JO simply isn't found at the requested
+date (`extraction.JoIntrouvable` — usually DILA hasn't published yet, the benign/common
+case, cf. the 10/08/2026 incident where this happened on an ordinary Monday), 1 for
+anything else (PISTE unreachable, invalid `--date`, unexpected exception). The Windows
+scheduled task retries on any non-zero code; the GitHub Pages workflow
+(`publier-pages.yml`) additionally distinguishes 1 from 2 so it only shows red on a
+real failure, not on a not-yet-published JO. **No mail ever means a failure** — a day
+with nothing to report still sends a "RAS" mail; this invariant is deliberate and shows
+up throughout the tests.
 
 ## Key invariants (do not casually change)
 

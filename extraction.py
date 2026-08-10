@@ -28,6 +28,16 @@ class ErreurPiste(Exception):
     """Échec définitif d'un appel PISTE (après relances)."""
 
 
+class JoIntrouvable(ErreurPiste):
+    """JO absent de la fenêtre `lastNJo` à la date demandée.
+
+    Cas distinct des autres `ErreurPiste` (panne réseau, 401 persistant…) : la cause la
+    plus fréquente est que le JO du jour n'est simplement pas encore publié côté DILA
+    (incident du 10/08/2026 — cf. `main.py`), pas une panne du pipeline. `main.py`
+    l'utilise pour retourner un code de sortie distinct, afin que le workflow GitHub ne
+    s'affiche pas en échec pour ce cas bénin et attendu."""
+
+
 def url_publique(id_texte: str) -> str:
     """URL Légifrance publique d'un texte du JORF (pour les hyperliens et les logs)."""
     return config.URL_PUBLIQUE_TEXTE.format(id=id_texte)
@@ -175,7 +185,7 @@ class ClientPiste:
         JOURNAL.info("lastNJo : %d JO reçus (fenêtre de rejeu).", len(conteneurs))
         jo = trouver_jo(conteneurs, date_cible)
         if jo is None:
-            raise ErreurPiste(
+            raise JoIntrouvable(
                 f"JO introuvable pour la date {date_cible.strftime('%d/%m/%Y')} "
                 f"(fenêtre des {config.NB_ELEMENT_LASTNJO} derniers JO ; jour sans JO, "
                 "publication pas encore faite, ou augmenter NB_ELEMENT_LASTNJO)."

@@ -302,8 +302,11 @@ Les cas marqués ⚠ sont des **défauts connus et non corrigés** : ils n'ont p
 - [ ] 🤖 Un texte présent deux fois dans le sommaire du JO n'est traité (et facturé
   en appel API) qu'une seule fois.
 - [ ] 🤖 Excel cible ouvert dans Excel → export sous nom suffixé de l'heure.
-- [ ] 🤖 Échec Outlook → repli HTML dans `sorties/` ; échec JO/PISTE → alerte
-  explicite + code retour 1.
+- [ ] 🤖 Échec Outlook → repli HTML dans `sorties/` ; JO introuvable à la date
+  demandée → alerte explicite + code retour 2 (cas bénin, souvent publication pas
+  encore faite — incident du 10/08/2026) ; autre panne PISTE/exception → code retour 1.
+  Le workflow GitHub Pages ne s'affiche en échec que sur le code 1
+  (`publier-pages.yml`).
 - [ ] 📅 Fenêtre de rejeu : une date à ~2-3 mois reste trouvable
   (`NB_ELEMENT_LASTNJO = 90`). 📅 22/05/2026 depuis fin juillet.
 

@@ -1,15 +1,20 @@
 """Orchestration de la veille JO « spécialités pharmaceutiques » (CEPS).
 
 Usage : `python main.py [--date AAAA-MM-JJ]` (défaut : aujourd'hui).
-Code retour : 0 si la veille a abouti (même « RAS »), 1 en cas d'échec — la tâche
-planifiée s'appuie sur ce code pour ses relances automatiques.
+Code retour : 0 si la veille a abouti (même « RAS ») ; 2 si le JO n'est pas trouvé à la
+date demandée (cas bénin le plus souvent — publication pas encore faite côté DILA,
+cf. incident du 10/08/2026, un lundi ouvré où le JO n'était simplement pas encore en
+ligne) ; 1 pour toute autre panne (PISTE injoignable, --date invalide, exception
+inattendue). Ces trois valeurs sont non nulles ou nulles de façon cohérente pour la
+tâche planifiée (relance sur tout code ≠ 0) ; le workflow GitHub, lui, distingue 1 et 2
+pour ne s'afficher en échec que sur une panne réelle (voir publier-pages.yml).
 
 Pipeline (§2 du plan, 100 % déterministe) :
 extraction PISTE → filtrage par titres → analyse déterministe →
 rapprochement 1 ligne par nom de médicament et par laboratoire (contrat du
 23/07/2026) → export Excel + notification (brouillon Outlook ou fichier HTML).
-Garde-fous : jour sans texte pertinent → mail « RAS » ; JO introuvable ou PISTE
-en panne → alerte explicite + code retour 1.
+Garde-fous : jour sans texte pertinent → mail « RAS » ; JO introuvable → alerte +
+code retour 2 ; PISTE en panne ou erreur inattendue → alerte + code retour 1.
 """
 
 import argparse
@@ -25,7 +30,7 @@ from dotenv import load_dotenv
 import config
 from analyse import analyser_texte_deterministe
 from export import exporter
-from extraction import ClientPiste, ErreurPiste, url_publique
+from extraction import ClientPiste, ErreurPiste, JoIntrouvable, url_publique
 from filtrage import filtrer_textes
 from notification import alerter, notifier
 from rapprochement import ResultatVeille, consolider
@@ -291,6 +296,13 @@ def principal(argv=None) -> int:
                 "--date fourni : il prime sur le fichier date (qui sera vidé)."
             )
         return executer(date_cible)
+    except JoIntrouvable as erreur:
+        # Cas bénin le plus fréquent : le JO du jour n'est pas encore publié côté DILA
+        # (incident du 10/08/2026). Code retour distinct de `ErreurPiste` pour que le
+        # workflow GitHub ne s'affiche pas en échec — l'alerte reste publiée quand même.
+        JOURNAL.error("Échec PISTE : %s", erreur)
+        alerter(str(erreur), date_cible)
+        return 2
     except ErreurPiste as erreur:
         JOURNAL.error("Échec PISTE : %s", erreur)
         alerter(str(erreur), date_cible)

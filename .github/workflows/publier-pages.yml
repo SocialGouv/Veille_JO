@@ -40,13 +40,20 @@ jobs:
         id: veille
         # continue-on-error : un échec (JO introuvable, PISTE en panne…) écrit quand
         # même un fichier `alerte_<date>.html` dans sorties/ (garde-fou E9) — on veut le
-        # publier plutôt que de s'arrêter net. Le job est explicitement mis en échec en
-        # fin de run si cette étape a échoué (voir dernière étape).
+        # publier plutôt que de s'arrêter net. Le job n'est mis en échec en fin de run
+        # que si le code retour de main.py l'indique (voir dernière étape) : 2 (JO pas
+        # encore publié côté DILA, cas bénin — incident du 10/08/2026) reste vert, tout
+        # le reste (1) passe le job en échec.
         continue-on-error: true
         env:
           PISTE_CLIENT_ID: ${{ secrets.PISTE_CLIENT_ID }}
           PISTE_CLIENT_SECRET: ${{ secrets.PISTE_CLIENT_SECRET }}
-        run: python main.py ${{ inputs.date && format('--date {0}', inputs.date) || '' }}
+        run: |
+          set +e
+          python main.py ${{ inputs.date && format('--date {0}', inputs.date) || '' }}
+          code=$?
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+          exit $code
 
       - name: Préparer le dossier de publication (branche gh-pages)
         run: |
@@ -73,8 +80,12 @@ jobs:
             git push origin HEAD:gh-pages
           fi
 
-      - name: Signaler l'échec de la veille (si l'étape « Exécuter la veille du jour » a échoué)
-        if: steps.veille.outcome == 'failure'
+      - name: Signaler l'échec de la veille (panne réelle uniquement — JO pas encore publié reste vert)
+        # Code 2 = JO introuvable à la date demandée (cas bénin le plus souvent : DILA
+        # n'a pas encore publié — incident du 10/08/2026) : pas d'échec de job, l'alerte
+        # publiée suffit. Tout code ≠ 0 et ≠ 2 (PISTE en panne, --date invalide,
+        # exception inattendue) reste un échec visible.
+        if: steps.veille.outputs.code != '0' && steps.veille.outputs.code != '2'
         run: |
-          echo "::error::La veille du jour a échoué (voir l'étape « Exécuter la veille du jour »). Une page d'alerte a tout de même été publiée."
+          echo "::error::La veille du jour a échoué (code retour ${{ steps.veille.outputs.code }} — voir l'étape « Exécuter la veille du jour »). Une page d'alerte a tout de même été publiée."
           exit 1
