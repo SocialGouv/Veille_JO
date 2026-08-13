@@ -3,36 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="color-scheme" content="light only">
-<title>Veille JO — spécialités pharmaceutiques (CEPS)</title>
-<style>
-.archives-conteneur{max-height:320px;overflow-y:auto;border:1px solid #cccccc;padding:0.5em 1em;margin-bottom:1em}
-#filtre-archives{width:16em;padding:0.3em;margin-bottom:0.5em}
-</style>
+<title>[VEILLE] - Publication JO du 13/08/2026</title>
 </head>
-<body style="background:#ffffff;color:#000000;font-family:Aptos,Arial,sans-serif">
-<h1>Veille JO — spécialités pharmaceutiques (CEPS)</h1>
-<p>Dernière publication : <strong>13/08/2026</strong></p>
-<h2>Archives</h2>
-<input type="text" id="filtre-archives" autocomplete="off"
-       placeholder="Filtrer par date (JJ/MM/AAAA), ex. « 18/ »">
-<div class="archives-conteneur">
-<ul id="archives">
-<li data-date="2026-08-13" data-affichee="13/08/2026"><a href="archive/2026-08-13.html">13/08/2026</a> (<a href="archive/2026-08-13.xlsx">Excel</a>)</li>
-<li data-date="2026-08-12" data-affichee="12/08/2026"><a href="archive/2026-08-12.html">12/08/2026</a></li>
-<li data-date="2026-08-11" data-affichee="11/08/2026"><a href="archive/2026-08-11.html">11/08/2026</a> (<a href="archive/2026-08-11.xlsx">Excel</a>)</li>
-<li data-date="2026-08-10" data-affichee="10/08/2026"><a href="archive/2026-08-10.html">10/08/2026</a></li>
-<li data-date="2026-08-09" data-affichee="09/08/2026"><a href="archive/2026-08-09.html">09/08/2026</a></li>
-<li data-date="2026-08-08" data-affichee="08/08/2026"><a href="archive/2026-08-08.html">08/08/2026</a> (<a href="archive/2026-08-08.xlsx">Excel</a>)</li>
-<li data-date="2026-08-07" data-affichee="07/08/2026"><a href="archive/2026-08-07.html">07/08/2026</a> (<a href="archive/2026-08-07.xlsx">Excel</a>)</li>
-<li data-date="2026-08-06" data-affichee="06/08/2026"><a href="archive/2026-08-06.html">06/08/2026</a> (<a href="archive/2026-08-06.xlsx">Excel</a>)</li>
-<li data-date="2026-08-05" data-affichee="05/08/2026"><a href="archive/2026-08-05.html">05/08/2026</a></li>
-<li data-date="2026-08-03" data-affichee="03/08/2026"><a href="archive/2026-08-03.html">03/08/2026</a></li>
-<li data-date="2026-07-30" data-affichee="30/07/2026"><a href="archive/2026-07-30.html">30/07/2026</a> (<a href="archive/2026-07-30.xlsx">Excel</a>)</li>
-<li data-date="2026-07-10" data-affichee="10/07/2026"><a href="archive/2026-07-10.html">10/07/2026</a> (<a href="archive/2026-07-10.xlsx">Excel</a>)</li>
-</ul>
-</div>
-<hr>
-<h2>Publication du jour</h2>
+<body style="background:#ffffff;color:#000000">
+<p><a href="../index.html">← Retour à la page d'accueil</a></p>
 
 <div style="font-size:12.0pt;font-family:Aptos,sans-serif;margin:0cm">
 <p>Bonjour,</p>
@@ -54,58 +28,5 @@
 <p>&nbsp;</p>
 <p>Cordialement,</p>
 </div>
-
-<script>
-(function () {
-  function damerauLevenshtein(a, b) {
-    var al = a.length, bl = b.length;
-    var d = [];
-    for (var i = 0; i <= al; i++) { d[i] = [i]; }
-    for (var j = 0; j <= bl; j++) { d[0][j] = j; }
-    for (var i = 1; i <= al; i++) {
-      for (var j = 1; j <= bl; j++) {
-        var cout = a[i - 1] === b[j - 1] ? 0 : 1;
-        var valeur = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + cout);
-        if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) {
-          valeur = Math.min(valeur, d[i - 2][j - 2] + 1);
-        }
-        d[i][j] = valeur;
-      }
-    }
-    return d[al][bl];
-  }
-
-  function distanceMeilleureSousChaine(saisie, cible) {
-    var meilleure = Infinity;
-    for (var i = 0; i <= cible.length; i++) {
-      for (var j = i; j <= cible.length; j++) {
-        var distance = damerauLevenshtein(saisie, cible.slice(i, j));
-        if (distance < meilleure) { meilleure = distance; }
-      }
-    }
-    return meilleure;
-  }
-
-  var conteneur = document.getElementById("archives");
-  var champ = document.getElementById("filtre-archives");
-  if (!conteneur || !champ) { return; }
-  var lignes = Array.prototype.slice.call(conteneur.querySelectorAll("li"));
-
-  champ.addEventListener("input", function () {
-    var saisie = champ.value.trim();
-    var notees = lignes.map(function (li) {
-      return { li: li, distance: distanceMeilleureSousChaine(saisie, li.dataset.affichee) };
-    });
-    notees.sort(function (a, b) {
-      if (a.distance !== b.distance) { return a.distance - b.distance; }
-      return a.li.dataset.date < b.li.dataset.date ? 1 : -1;
-    });
-    notees.forEach(function (item, index) {
-      item.li.style.display = index < 10 ? "" : "none";
-      conteneur.appendChild(item.li);
-    });
-  });
-})();
-</script>
 </body>
 </html>
